@@ -1,0 +1,18 @@
+from telegram.ext import (
+  ConversationHandler,
+)
+END = ConversationHandler.END
+
+# Stages
+QUERY_ROUTES, EXPLORER_ROUTES, WALLET_ROUTES, END_ROUTES = range(4)
+
+(
+  MAIN_MENU,
+  TRADE_MANAGEMENT,
+  WALLET_MANAGEMENT,
+  EXPLORER_MANAGEMENT,
+  NETWORK_INFO,
+  BALANCE,
+  ERC20BALANCE,
+  GEN_WALLET,
+) = range(8)
