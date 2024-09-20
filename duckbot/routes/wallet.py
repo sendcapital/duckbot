@@ -32,9 +32,6 @@ class Wallet:
     self.wallet_interface = self.db.wallet_interface
     self.main_menu = self.airdao_handler.main_menu_routes.get_main_menu()
     
-  def update_user_event_manager(self, user_event_manager):
-    self.user_event_manager = user_event_manager
-    
   def get_wallet_keyboard(self, user_id):
     existing_wallet = self.wallet_interface.fetch_wallet_bool(user_id=user_id)
     if existing_wallet:

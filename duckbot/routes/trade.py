@@ -29,9 +29,6 @@ class Trade:
     self.cipher = cipher
     self.main_menu = self.airdao_handler.main_menu_routes.get_main_menu()
     
-  def update_user_event_manager(self, user_event_manager):
-    self.user_event_manager = user_event_manager
-    
   def get_trade_keyboard(self):
     keyboard = [
       [
@@ -138,11 +135,11 @@ class Trade:
     
 
   def get_handler(self):
-    wallet_routes = [
+    trade_routes = [
       MessageHandler(filters.TEXT & filters.REPLY, self.handle_trade_operation),
       CallbackQueryHandler(self.trade_management, pattern=f"^{TRADE_MANAGEMENT}$"),
       CallbackQueryHandler(self.send_funds_help, pattern=f"^{SEND_FUNDS}$",),
       CallbackQueryHandler(self.main_menu, pattern=f"^{MAIN_MENU}$"),
     ]
-    wallet_routes.extend(self.airdao_handler.base_commands())
-    return wallet_routes
+    trade_routes.extend(self.airdao_handler.base_commands())
+    return trade_routes

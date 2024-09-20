@@ -9,7 +9,8 @@ from consts import (
   QUERY_ROUTES, 
   TRADE_MANAGEMENT,
   WALLET_MANAGEMENT,
-  EXPLORER_MANAGEMENT
+  EXPLORER_MANAGEMENT,
+  PREDICTION_MANAGEMENT
 )
 
 from utils import (
@@ -29,12 +30,13 @@ class MainMenu:
   def get_main_menu_keyboard(self):
     keyboard = [
       [
+        InlineKeyboardButton("📈 Prediction Market", callback_data=str(PREDICTION_MANAGEMENT)),
+        InlineKeyboardButton("🌐 AirDao Explorer", callback_data=str(EXPLORER_MANAGEMENT))
+      ],
+      [
         InlineKeyboardButton("📈 Trade AirDao", callback_data=str(TRADE_MANAGEMENT)),
         InlineKeyboardButton("💰 Manage Wallets", callback_data=str(WALLET_MANAGEMENT)),
       ],
-      [
-        InlineKeyboardButton("🌐 AirDao Explorer", callback_data=str(EXPLORER_MANAGEMENT))
-      ]
     ]
     return keyboard
   

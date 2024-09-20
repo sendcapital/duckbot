@@ -32,14 +32,17 @@ from consts import (
   WALLET_ROUTES,
   WALLET_MANAGEMENT,
   TRADE_ROUTES,
-  TRADE_MANAGEMENT
+  TRADE_MANAGEMENT,
+  PREDICTION_ROUTES,
+  PREDICTION_MANAGEMENT
 )
 
 from routes import (
   MainMenu, 
   Explorer,
   Wallet,
-  Trade
+  Trade,
+  Prediction
 )
 
 from utils import AESCipher
@@ -69,6 +72,9 @@ class AirDaoHandler:
     
     self.trade_routes = Trade(self, self.config, self.w3, self.cipher, self.db)
     self.trade_management = self.trade_routes.trade_management
+    
+    self.prediction_routes = Prediction(self, self.config, self.w3, self.cipher, self.db)
+    self.prediction_management = self.prediction_routes.prediction_management
     
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy()) # Fix RuntimeError: There is no current event loop in thread 'Thread-1'.
         
@@ -144,6 +150,9 @@ class AirDaoHandler:
   
   def get_trade_route(self):
     return self.trade_routes.get_handler()
+
+  def get_prediction_route(self):
+    return self.prediction_routes.get_handler()
   
   def base_commands(self):
     return [
@@ -156,6 +165,7 @@ class AirDaoHandler:
       CallbackQueryHandler(self.explorer_management, pattern=f"^{EXPLORER_MANAGEMENT}$"),
       CallbackQueryHandler(self.wallet_management, pattern=f"^{WALLET_MANAGEMENT}$"),
       CallbackQueryHandler(self.trade_management, pattern=f"^{TRADE_MANAGEMENT}$"),
+      CallbackQueryHandler(self.prediction_management, pattern=f"^{PREDICTION_MANAGEMENT}$"),
     ]
     return ConversationHandler(
       entry_points=[CommandHandler("start", self.start)],
@@ -164,6 +174,7 @@ class AirDaoHandler:
         EXPLORER_ROUTES: self.get_explorer_route(),
         WALLET_ROUTES: self.get_wallet_route(),
         TRADE_ROUTES: self.get_trade_route(),
+        PREDICTION_ROUTES: self.get_prediction_route(),
         END_ROUTES: [CallbackQueryHandler(self.end, pattern=f"^{END_ROUTES}$")],
       },
       fallbacks=[CommandHandler("start", self.start)],
