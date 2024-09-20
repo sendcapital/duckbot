@@ -30,13 +30,16 @@ from consts import (
   EXPLORER_MANAGEMENT,
   EXPLORER_ROUTES,
   WALLET_ROUTES,
-  WALLET_MANAGEMENT
+  WALLET_MANAGEMENT,
+  TRADE_ROUTES,
+  TRADE_MANAGEMENT
 )
 
 from routes import (
   MainMenu, 
   Explorer,
-  Wallet
+  Wallet,
+  Trade
 )
 
 filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
@@ -51,13 +54,17 @@ class AirDaoHandler:
     self.chat_id = None
     self.main_menu_routes = MainMenu(self)
     self.main_menu = self.main_menu_routes.get_main_menu()
-    self.w3 = Web3(Web3.HTTPProvider(self.config["airdao_rpc"]))
+    self.w3 = Web3(Web3.HTTPProvider(self.config["airdao_main_rpc"]))
     
     self.explorer_routes = Explorer(self, self.config, self.w3)
     self.explorer_management = self.explorer_routes.explorer_management
     
     self.wallet_routes = Wallet(self, self.config, self.w3)
     self.wallet_management = self.wallet_routes.wallet_management
+    
+    self.trade_routes = Trade(self, self.config, self.w3)
+    self.trade_management = self.trade_routes.trade_management
+    
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy()) # Fix RuntimeError: There is no current event loop in thread 'Thread-1'.
         
   async def start(
@@ -94,7 +101,6 @@ class AirDaoHandler:
     
     return END_ROUTES
 
-
   async def end(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     End the conversation and display the final message.
@@ -117,6 +123,9 @@ class AirDaoHandler:
   def get_wallet_route(self):
     return self.wallet_routes.get_handler()
   
+  def get_trade_route(self):
+    return self.trade_routes.get_handler()
+  
   def base_commands(self):
     return [
       CommandHandler("main_menu", self.main_menu),
@@ -127,7 +136,7 @@ class AirDaoHandler:
       CallbackQueryHandler(self.main_menu, pattern=f"^{MAIN_MENU}$"),
       CallbackQueryHandler(self.explorer_management, pattern=f"^{EXPLORER_MANAGEMENT}$"),
       CallbackQueryHandler(self.wallet_management, pattern=f"^{WALLET_MANAGEMENT}$"),
-
+      CallbackQueryHandler(self.trade_management, pattern=f"^{TRADE_MANAGEMENT}$"),
     ]
     return ConversationHandler(
       entry_points=[CommandHandler("start", self.start)],
@@ -135,6 +144,7 @@ class AirDaoHandler:
         QUERY_ROUTES: bundled_query_routes,
         EXPLORER_ROUTES: self.get_explorer_route(),
         WALLET_ROUTES: self.get_wallet_route(),
+        TRADE_ROUTES: self.get_trade_route(),
         END_ROUTES: [CallbackQueryHandler(self.end, pattern=f"^{END_ROUTES}$")],
       },
       fallbacks=[CommandHandler("start", self.start)],

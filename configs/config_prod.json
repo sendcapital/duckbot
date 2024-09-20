@@ -2,6 +2,8 @@
     "websocketMainUrl": "",
     "websocketTestUrl": "",
     "telegramToken": "7679126214:AAFT9Ppd_Q1s6YN5PhkrD34F1Yb7hgeV4b8",
-    "airdao_rpc": "https://network.ambrosus-test.io"
+    "airdao_test_rpc": "https://network.ambrosus-test.io",
+    "airdao_main_rpc": "https://network.ambrosus.io/",
+    "bridge_info": "https://raw.githubusercontent.com/ambrosus/ambrosus-bridge/28ef2bb7d101581436e2fd2deba740d5698795a8/contracts/configs/main.json"
 }
 

@@ -30,8 +30,6 @@ class MainMenu:
     keyboard = [
       [
         InlineKeyboardButton("📈 Trade AirDao", callback_data=str(TRADE_MANAGEMENT)),
-      ],
-      [
         InlineKeyboardButton("💰 Manage Wallets", callback_data=str(WALLET_MANAGEMENT)),
       ],
       [

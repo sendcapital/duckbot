@@ -50,7 +50,6 @@ class BotLauncher:
             
         return config
 
-
     def _setup_handlers(self):
         self._log.info("Setting up handlers")
         self.airdao = AirDaoHandler(self._bot, self.config)

@@ -15,14 +15,16 @@ from consts import (
   WALLET_ROUTES,
   MAIN_MENU,
   GEN_WALLET,
+  FUND_WALLET,
   WALLET_MANAGEMENT,
 )
+from web3 import Web3
 logger = init_logger(__name__)
 
 class Wallet:
   def __init__(self, airdao_handler, config, w3):
     self.config = config
-    self.w3 = w3
+    self.w3: Web3.HTTPProvider = w3
     self.airdao_handler = airdao_handler
     self.main_menu = self.airdao_handler.main_menu_routes.get_main_menu()
     
@@ -33,6 +35,7 @@ class Wallet:
     keyboard = [
       [
         InlineKeyboardButton("💰 Generate Wallet", callback_data=str(GEN_WALLET)),
+        InlineKeyboardButton("💸 Fund Wallet", callback_data=str(FUND_WALLET)),
       ],
       [
         InlineKeyboardButton("⬅️ Go Back", callback_data=str(MAIN_MENU)),
@@ -60,7 +63,6 @@ class Wallet:
       await self.gen_wallet(update, context)
     return WALLET_ROUTES
 
-  
   async def gen_wallet_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
@@ -87,12 +89,38 @@ class Wallet:
     await update.message.reply_text(text=text, reply_markup=keyboard_markup)
     logger.info(f"Wallet generated successfully by {user_id}!")
     return WALLET_ROUTES
+  
+  async def fund_wallet_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user_id = update.message.from_user.id
+    text = "Please enter the address you want to fund."
+    await update.message.reply_text(text=text, reply_markup=ForceReply())
+    logger.info(f"User {user_id} is funding a wallet.")
+    return WALLET_ROUTES
+  
+  async def fund_wallet(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user_id = update.message.from_user.id
+    message = update.message.text.split(" ")
+    if len(message) == 0:
+      text = "Invalid command format"
+      await update.message.reply_text(text=text)
+      return WALLET_ROUTES
+    
+    address = message[0].lower()
+    checksum_address = self.w3.to_checksum_address(address)
+    
+    keyboard = self.get_wallet_keyboard()
+    keyboard_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(text=text, reply_markup=keyboard_markup)
+    
+    logger.info(f"User {user_id} is funding {address}.")
+    return WALLET_ROUTES
 
   def get_handler(self):
     wallet_routes = [
       MessageHandler(filters.TEXT & filters.REPLY, self.handle_wallet_operation),
       CallbackQueryHandler(self.wallet_management, pattern=f"^{WALLET_MANAGEMENT}$"),
       CallbackQueryHandler(self.gen_wallet_help, pattern=f"^{GEN_WALLET}$",),
+      CallbackQueryHandler(self.fund_wallet_help, pattern=f"^{FUND_WALLET}$",),
       CallbackQueryHandler(self.main_menu, pattern=f"^{MAIN_MENU}$"),
     ]
     wallet_routes.extend(self.airdao_handler.base_commands())
