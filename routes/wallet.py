@@ -20,8 +20,9 @@ from consts import (
 logger = init_logger(__name__)
 
 class Wallet:
-  def __init__(self, airdao_handler, config):
+  def __init__(self, airdao_handler, config, w3):
     self.config = config
+    self.w3 = w3
     self.airdao_handler = airdao_handler
     self.main_menu = self.airdao_handler.main_menu_routes.get_main_menu()
     
@@ -53,19 +54,38 @@ class Wallet:
 
     return WALLET_ROUTES
   
+  async def handle_wallet_operation(self, update: Update, context: CallbackContext):
+    operation = context.user_data.get('operation')
+    if operation == 'gen':
+      await self.gen_wallet(update, context)
+    return WALLET_ROUTES
+
+  
   async def gen_wallet_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     text = "Generate a new wallet! Please enter a name for your wallet."
+    context.user_data['operation'] = 'gen'
     await query.message.reply_text(text=text, reply_markup=ForceReply())
+    logger.info(f"User {query.from_user.id} is generating a new wallet.")
     return WALLET_ROUTES
-
-  async def handle_wallet_operation(self, update: Update, context: CallbackContext):
-    operation = context.user_data.get('operation')
-    if operation == 'add':
-      await self.add_wallet(update, context)
-    elif operation == 'delete':
-      await self.delete_wallet(update, context)
+  
+  async def gen_wallet(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user_id = update.message.from_user.id
+    wallet_name = update.message.text
+    wallet = self.w3.eth.account.create()
+    address = wallet.address
+    private_key = wallet._private_key.hex()
+    text = (
+      f"Wallet generated successfully!\n"
+      f"Name: {wallet_name}\n"
+      f"Address: {address}\n"
+      f"Private Key: {private_key}"
+    )
+    keyboard = self.get_wallet_keyboard()
+    keyboard_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(text=text, reply_markup=keyboard_markup)
+    logger.info(f"Wallet generated successfully by {user_id}!")
     return WALLET_ROUTES
 
   def get_handler(self):

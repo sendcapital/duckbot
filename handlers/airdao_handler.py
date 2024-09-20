@@ -51,11 +51,12 @@ class AirDaoHandler:
     self.chat_id = None
     self.main_menu_routes = MainMenu(self)
     self.main_menu = self.main_menu_routes.get_main_menu()
+    self.w3 = Web3(Web3.HTTPProvider(self.config["airdao_rpc"]))
     
-    self.explorer_routes = Explorer(self, self.config)
+    self.explorer_routes = Explorer(self, self.config, self.w3)
     self.explorer_management = self.explorer_routes.explorer_management
     
-    self.wallet_routes = Wallet(self, self.config)
+    self.wallet_routes = Wallet(self, self.config, self.w3)
     self.wallet_management = self.wallet_routes.wallet_management
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy()) # Fix RuntimeError: There is no current event loop in thread 'Thread-1'.
         
@@ -120,7 +121,6 @@ class AirDaoHandler:
     return [
       CommandHandler("main_menu", self.main_menu),
     ]
-
 
   def create_conversation_handler(self) -> ConversationHandler:
     bundled_query_routes = [

@@ -25,12 +25,11 @@ from utils import (
 logger = init_logger(__name__)
 
 class Explorer:
-  def __init__(self, airdao_handler , config):
+  def __init__(self, airdao_handler , config, w3):
     self.airdao_handler = airdao_handler
     self.config = config
     self.main_menu = self.airdao_handler.main_menu_routes.get_main_menu()
-    self.w3 = Web3(Web3.HTTPProvider(self.config["airdao_rpc"]))
-    
+    self.w3 = w3
 
   def get_explorer_keyboard(self):
     keyboard = [
