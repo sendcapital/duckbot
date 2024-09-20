@@ -8,17 +8,17 @@
       "name": "Python Debugger: Test Staging Bot",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/main.py",
+      "program": "${workspaceFolder}/duckbot/main.py",
       "console": "integratedTerminal",
-      "args": ["-c", "configs/config_staging.json"]
+      "args": ["-c", "duckbot/configs/config_staging.json"]
     },
     {
       "name": "Python Debugger: Test Production Bot",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/main.py",
+      "program": "${workspaceFolder}/duckbot/main.py",
       "console": "integratedTerminal",
-      "args": ["-c", "configs/config_prod.json"]
+      "args": ["-c", "duckbot/configs/config_prod.json"]
     }
   ]
 }

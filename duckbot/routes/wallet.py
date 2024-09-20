@@ -16,22 +16,41 @@ from consts import (
   MAIN_MENU,
   GEN_WALLET,
   FUND_WALLET,
+  PRIVATE_KEY,
   WALLET_MANAGEMENT,
 )
 from web3 import Web3
 logger = init_logger(__name__)
 
 class Wallet:
-  def __init__(self, airdao_handler, config, w3):
+  def __init__(self, airdao_handler, config, w3, cipher, db):
     self.config = config
     self.w3: Web3.HTTPProvider = w3
     self.airdao_handler = airdao_handler
+    self.cipher = cipher
+    self.db = db
+    self.wallet_interface = self.db.wallet_interface
     self.main_menu = self.airdao_handler.main_menu_routes.get_main_menu()
     
   def update_user_event_manager(self, user_event_manager):
     self.user_event_manager = user_event_manager
     
-  def get_wallet_keyboard(self):
+  def get_wallet_keyboard(self, user_id):
+    existing_wallet = self.wallet_interface.fetch_wallet_bool(user_id=user_id)
+    if existing_wallet:
+      keyboard = [
+        [
+          InlineKeyboardButton("💰 Reset Wallet", callback_data=str(GEN_WALLET)),
+          InlineKeyboardButton("💸 Fund Wallet", callback_data=str(FUND_WALLET)),
+        ],
+        [
+          InlineKeyboardButton("⬅️ Get Private Key", callback_data=str(PRIVATE_KEY)),
+        ],
+        [
+          InlineKeyboardButton("⬅️ Go Back", callback_data=str(MAIN_MENU)),
+        ]
+      ]
+      return keyboard
     keyboard = [
       [
         InlineKeyboardButton("💰 Generate Wallet", callback_data=str(GEN_WALLET)),
@@ -45,7 +64,9 @@ class Wallet:
   
   async def wallet_management(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     text = ("Explore AirDao Wallets! What do you want to do?")
-    keyboard = self.get_wallet_keyboard()
+    user_id = update.callback_query.from_user.id
+
+    keyboard = self.get_wallet_keyboard(user_id)
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     if update.message:
@@ -75,19 +96,39 @@ class Wallet:
   async def gen_wallet(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
     wallet_name = update.message.text
-    wallet = self.w3.eth.account.create()
-    address = wallet.address
-    private_key = wallet._private_key.hex()
+    
+    existing_wallet = self.wallet_interface.fetch_wallet_bool(user_id=user_id)
+    if not existing_wallet:
+      address, pk_tuple = self.cipher.create_wallet()
+      print(len(pk_tuple))
+      encrypted_private_key = pk_tuple[0]
+      
+      self.wallet_interface.create_if_not_exists(
+        user_id=user_id,
+        address=address,
+        label=wallet_name,
+        encrypted_key=str(encrypted_private_key)
+      )
+    else:
+      existing_wallet = self.wallet_interface.fetch_wallet_data(user_id=user_id)
+      address = existing_wallet.address
+      wallet_name = existing_wallet.label
+      encrypted_private_key = str(existing_wallet.encrypted_key)
+      
+    
     text = (
       f"Wallet generated successfully!\n"
       f"Name: {wallet_name}\n"
       f"Address: {address}\n"
-      f"Private Key: {private_key}"
+      f"Private Key: {self.cipher.decrypt_wallet(encrypted_private_key)}"
     )
-    keyboard = self.get_wallet_keyboard()
+    
+    keyboard = self.get_wallet_keyboard(user_id)
     keyboard_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(text=text, reply_markup=keyboard_markup)
+    
     logger.info(f"Wallet generated successfully by {user_id}!")
+    
     return WALLET_ROUTES
   
   async def fund_wallet_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -108,11 +149,37 @@ class Wallet:
     address = message[0].lower()
     checksum_address = self.w3.to_checksum_address(address)
     
-    keyboard = self.get_wallet_keyboard()
+    keyboard = self.get_wallet_keyboard(user_id)
     keyboard_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(text=text, reply_markup=keyboard_markup)
     
     logger.info(f"User {user_id} is funding {address}.")
+    return WALLET_ROUTES
+  
+  async def get_private_key(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user_id = update.callback_query.from_user.id
+    wallet = self.wallet_interface.fetch_wallet_data(user_id=user_id)
+    if wallet:
+      warning_text = (
+      """
+        Are you sure you want to export your Private Key?
+
+        🚨 WARNING: Never share your private key! 🚨
+        If anyone, including team or mods, is asking for your private key, IT IS A SCAM! Sending it to them will give them full control over your wallet.
+
+        Tteam and mods will NEVER ask for your private key.
+      """ 
+      )
+      text = (
+        f"Private Key: {self.cipher.decrypt_wallet(wallet.encrypted_key[1:])}"
+      )
+      await update.callback_query.message.reply_text(text=warning_text)
+      keyboard = self.get_wallet_keyboard(user_id)
+      keyboard_markup = InlineKeyboardMarkup(keyboard)
+      await update.callback_query.message.reply_text(text=text, reply_markup=keyboard_markup)
+    else:
+      text = "No wallet found!"
+      await update.callback_query.message.reply_text(text=text)
     return WALLET_ROUTES
 
   def get_handler(self):
@@ -121,6 +188,7 @@ class Wallet:
       CallbackQueryHandler(self.wallet_management, pattern=f"^{WALLET_MANAGEMENT}$"),
       CallbackQueryHandler(self.gen_wallet_help, pattern=f"^{GEN_WALLET}$",),
       CallbackQueryHandler(self.fund_wallet_help, pattern=f"^{FUND_WALLET}$",),
+      CallbackQueryHandler(self.get_private_key, pattern=f"^{PRIVATE_KEY}$"),
       CallbackQueryHandler(self.main_menu, pattern=f"^{MAIN_MENU}$"),
     ]
     wallet_routes.extend(self.airdao_handler.base_commands())

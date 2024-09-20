@@ -42,27 +42,32 @@ from routes import (
   Trade
 )
 
+from utils import AESCipher
+
 filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
 logger = init_logger(__name__)
 
 class AirDaoHandler:
-  def __init__(self, application, config):
+  def __init__(self, application, config, db):
     self.config = config
     self.application: Application = application
-    
+    self.db = db
     self.user_id = None
     self.chat_id = None
     self.main_menu_routes = MainMenu(self)
     self.main_menu = self.main_menu_routes.get_main_menu()
     self.w3 = Web3(Web3.HTTPProvider(self.config["airdao_main_rpc"]))
+    self.cipher = None
+    
+    self.user_interface = self.db.user_interface
     
     self.explorer_routes = Explorer(self, self.config, self.w3)
     self.explorer_management = self.explorer_routes.explorer_management
     
-    self.wallet_routes = Wallet(self, self.config, self.w3)
+    self.wallet_routes = Wallet(self, self.config, self.w3, self.cipher, self.db)
     self.wallet_management = self.wallet_routes.wallet_management
     
-    self.trade_routes = Trade(self, self.config, self.w3)
+    self.trade_routes = Trade(self, self.config, self.w3, self.cipher, self.db)
     self.trade_management = self.trade_routes.trade_management
     
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy()) # Fix RuntimeError: There is no current event loop in thread 'Thread-1'.
@@ -75,11 +80,25 @@ class AirDaoHandler:
     user = update.message.from_user
     self.first_name = user.first_name if user.first_name else "None"
     self.user_id = user.id
+    self.cipher = AESCipher(str(self.user_id), self.config)
+    self.wallet_routes.cipher = self.cipher
+    self.trade_routes.cipher = self.cipher
+
     self.language_code = user.language_code
     self.username = user.username if user.username else "None"
     self.is_bot = user.is_bot
     self.chat_id = update.message.from_user.id
     self.chat_type = update.message.chat.type
+
+    self.user_data = self.user_interface.fetch_user_data(telegram_user_id=self.user_id)
+    if self.user_data == None:
+      self.user_interface.create_if_not_exists(
+        telegram_user_id=self.user_id,
+        telegram_username=self.username,
+        language_code=self.language_code,
+        bot=self.is_bot
+      )
+      
     await self.application.bot.send_message(chat_id=self.chat_id, text="Pulling archives and magic ✨ from the void ...")
     logger.info("User %s started the conversation.", user.first_name)
     await self.main_menu(update, context)

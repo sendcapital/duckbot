@@ -20,10 +20,13 @@ from web3 import Web3
 logger = init_logger(__name__)
 
 class Trade:
-  def __init__(self, airdao_handler, config, w3):
+  def __init__(self, airdao_handler, config, w3, cipher, db):
     self.config = config
     self.w3: Web3.HTTPProvider = w3
     self.airdao_handler = airdao_handler
+    self.db = db
+    self.wallet_interface = self.db.wallet_interface
+    self.cipher = cipher
     self.main_menu = self.airdao_handler.main_menu_routes.get_main_menu()
     
   def update_user_event_manager(self, user_event_manager):
@@ -69,42 +72,69 @@ class Trade:
       user_id = update.message.from_user.id
       
     context.user_data['operation'] = 'send_funds'
-    text = "Please enter the address you want to send funds to."
+    text = "Please enter the address you want to send funds to in the format: <address> <amount>"
     await query.message.reply_text(text=text, reply_markup=ForceReply())
     logger.info(f"User {user_id} is funding a wallet")
     return TRADE_ROUTES
   
   async def send_funds(self, update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
-    pk = "2d4ff9a108d7e102e68a0eeda132303d07906f730264ec7b6e1f1cd9fc1440cd"
-    address = "0x01a093700a7f67F42dc6590278887F5830D8AEeC"
-    acct2 = self.w3.eth.account.from_key(pk)
-    
-    gas_limit = self.w3.eth.estimate_gas({
-      'from': "0x01a093700a7f67F42dc6590278887F5830D8AEeC",
-      'to': "0x7b2A074D95452897E9D53139DD6425Cdb2c2b9bb"
-    })
-    
-    transaction = {
-      'from': acct2.address,
-      'to': "0x7b2A074D95452897E9D53139DD6425Cdb2c2b9bb",
-      'value': 1,
-      'nonce': self.w3.eth.get_transaction_count(acct2.address),
-      'gas': gas_limit,
-      'gasPrice': self.w3.eth.gas_price,
-      'chainId': self.w3.eth.chain_id
-    }
-    signed = self.w3.eth.account.sign_transaction(transaction, pk)
+    try:
+      wallet = self.wallet_interface.fetch_wallet_data(user_id=user_id)
+      address = wallet.address
+      encrypted_key = wallet.encrypted_key[1:]
+      pk = self.cipher.decrypt(encrypted_key)
+      
+      message = update.message.text.split(" ")
+      if len(message) == 0:
+        text = "Invalid command format"
+        await update.message.reply_text(text=text)
+        return TRADE_ROUTES
+      
+      receiver_address = message[0].lower()
+      decimals = 18
+      amount = float(message[1])/(10 ** decimals)
+      
+      if amount < 5:
+        text = "Minimum amount is 5"
+        await update.message.reply_text(text=text)
+        return TRADE_ROUTES
+      
+      checksum_receiver_address = self.w3.to_checksum_address(receiver_address)
+      checksum_address = self.w3.to_checksum_address(address)
+      acct2 = self.w3.eth.account.from_key(pk)
+      
+      gas_limit = self.w3.eth.estimate_gas({
+        'from': checksum_address,
+        'to': checksum_receiver_address
+      })
+      
+      
+      transaction = {
+        'from': acct2.address,
+        'to': checksum_receiver_address,
+        'value': amount,
+        'nonce': self.w3.eth.get_transaction_count(checksum_address),
+        'gas': gas_limit,
+        'gasPrice': self.w3.eth.gas_price,
+        'chainId': self.w3.eth.chain_id
+      }
+      signed = self.w3.eth.account.sign_transaction(transaction, pk)
 
-    tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
-    tx = self.w3.eth.get_transaction(tx_hash)    
-    text = "Funds sent successfully!"
+      tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
+      tx = self.w3.eth.get_transaction(tx_hash)    
+      text = "Funds sent successfully!"
 
-    keyboard = self.get_trade_keyboard()
-    keyboard_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(text=text, reply_markup=keyboard_markup)
-    logger.info(f"User {user_id} is funding {address}.")
-    return TRADE_ROUTES 
+      keyboard = self.get_trade_keyboard()
+      keyboard_markup = InlineKeyboardMarkup(keyboard)
+      await update.message.reply_text(text=text, reply_markup=keyboard_markup)
+      logger.info(f"User {user_id} is funding {address}.")
+      return TRADE_ROUTES 
+    except Exception as e:
+      logger.error(f"Error sending funds: {e}")
+      text = "Error sending funds"
+      await update.message.reply_text(text=text)
+      return TRADE_ROUTES
     
 
   def get_handler(self):

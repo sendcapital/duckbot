@@ -13,6 +13,7 @@ import threading
 
 from .client import AirBotClient
 from handlers import AirDaoHandler
+from database import AirDaoDB
 
 class BotLauncher:
     """Bot launcher which parses configuration file, creates and starts the bot."""
@@ -21,18 +22,14 @@ class BotLauncher:
         self._test = False
         self._log = self.setup_logging()
         self.config = self.load_config(config_file_name)
+        self.db = AirDaoDB()
         
-
         self._client = AirBotClient(config=self.config)
         self._bot = self._client.launch_application()
         
         self.loop = asyncio.new_event_loop()  
         asyncio.set_event_loop(self.loop)
         self.tasks=set()
-        
-        self.max_connections = 10
-        self.executor = ThreadPoolExecutor(max_workers=self.max_connections)
-        self.lock = threading.Lock()          
         
     def setup_logging(self):
         filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
@@ -52,7 +49,7 @@ class BotLauncher:
 
     def _setup_handlers(self):
         self._log.info("Setting up handlers")
-        self.airdao = AirDaoHandler(self._bot, self.config)
+        self.airdao = AirDaoHandler(self._bot, self.config, self.db)
         self.conv_handler = self.airdao.create_conversation_handler()
 
         self._bot.add_handler(self.conv_handler)
