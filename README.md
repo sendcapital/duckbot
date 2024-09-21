@@ -4,7 +4,7 @@
 
 Duck Bot is a Telegram Bot Prediction Market implemented with an Orderbook and AMM. Positions are tracked and settled onchain while Orderbook Data & Matching and AMM logic are handled offchain. The smart contracts are written in Solidity and deployed on AirDAO.
 
-Bets are placed and settled in the native token of the chain, AMB.
+Bets are placed and settled in the native token of the chain, $AMB.
 
 Aggregation uses perps market design with prices as probabilities ranging from 0% to 100%.
 
@@ -35,7 +35,11 @@ The outcomes are verified solely by a centralized Oracle, managed by the Duck Bo
 ## Components
 
 ### Chain
-Accounts have a Balance and Positions per Prediction Market. A position consists of an aggregated notional and size which is sufficient tracking information.
+Accounts have a Balance and Positions per Prediction Market. A Position consists of an aggregated Notional and Size which is sufficient tracking information.
+
+Probabilities (Prices in Perpetuals Model) arn e9.
+Sizes (Contracts) are e9.
+Notional (Underlying amount for Balance, Pnl, Margin) are e18.
 
 ### Offchain
 The orderbook is stored in an offchain PostgreSQL database. The AMM gridbot parameters are fixed, so this results in a fixed list of signed sizes to represent the book.
