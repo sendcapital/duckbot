@@ -44,9 +44,13 @@ class MainMenu:
     keyboard = self.get_main_menu_keyboard()
     reply_markup = InlineKeyboardMarkup(keyboard)
     text = (
-      "🐱 meow!\n"
+      "🦆 Welcome to Duck Bot 🦆\n"
+      "AirDAO's Prediction Market on Telegram!\n"
       "\n"
-      "Welcome to AirDao \n"
+      "Start trading in 3 easy steps:\n"
+      "1. Generate and fund a new wallet under Manage Wallets\n"
+      "2. Choose a market under Prediction Market\n"
+      "3. Place your bets!\n"
     )
     if update.message:
       await update.message.reply_text(text=text, reply_markup=reply_markup)
