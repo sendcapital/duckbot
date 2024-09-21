@@ -36,3 +36,10 @@ The outcomes are verified solely by a centralized Oracle, managed by the Duck Bo
 
 ### Chain
 Accounts have a Balance and Positions per Prediction Market. A position consists of an aggregated notional and size which is sufficient tracking information.
+
+### Offchain
+The orderbook is stored in an offchain PostgreSQL database. The AMM gridbot parameters are fixed, so this results in a fixed list of signed sizes to represent the book.
+
+The matching engine logic is also conducted offchain whenever a user attempts to bet, which then submits the match onchain to complete the trade.
+
+The AMM logic is embedded in the matching engine which replaces filled Asks with Bids one price level lower, and filled Bids with Asks one price level higher.
