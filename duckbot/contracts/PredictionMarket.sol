@@ -164,7 +164,8 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         require(isResolved, "Market is not resolved yet");
 
         int256 matchedMakerSize = userSize[userAddress];
-        int256 matchedMakerNotional = (outcome ? MAX_PRICE : 0) * matchedMakerSize;
+        int256 matchedMakerNotional = 0;
+        if (outcome) matchedMakerNotional = MAX_PRICE * matchedMakerSize;
 
         // Call matchAccounts with the updated types and nonce increment
         matchAccounts(
