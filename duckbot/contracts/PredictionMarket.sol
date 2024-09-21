@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 interface IOracle {
     function getOutcome(
         bytes32 questionId
-    ) external view returns (int256, bool, bool, bool);
+    ) external view returns (bool, bool, bool);
 
     function getResolutionTimestamp(
         bytes32 questionId
