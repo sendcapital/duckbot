@@ -10,6 +10,7 @@ class Position:
     notional: Notional = 0
     max_price: Price = 100
     
+    @classmethod
     def from_price(cls: Self, price: Price, size: Size) -> Self:
         return cls(size=size, notional=price * size)
     

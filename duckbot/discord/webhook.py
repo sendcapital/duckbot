@@ -50,6 +50,7 @@ class Webhook:
     token: str
     DISCORD_URL: str = 'https://discord.com/api'
 
+    @classmethod
     def from_config_file(cls, file_path: str) -> Self:
         try:
             with open(file_path, 'r') as config_file:
