@@ -1,12 +1,8 @@
+import json
+import logging
+from typing import Self
 import requests
 from dataclasses import dataclass, asdict
-
-DISCORD_URL = 'https://discord.com/api'
-
-@dataclass
-class Webhook:
-    id: str
-    token: str
 
 
 @dataclass
@@ -48,5 +44,19 @@ class Message:
     embeds: list[Embed] | None = None  # embedded `rich` content
 
 
-def execute(data: Message, webhook: Webhook, wait: bool = False, url: str = DISCORD_URL):
-    return requests.post(f'{url}/webhooks/{webhook.id}/{webhook.token}?wait={wait}', json=asdict(data))
+@dataclass
+class Webhook:
+    id: str
+    token: str
+    DISCORD_URL: str = 'https://discord.com/api'
+
+    def from_config_file(cls, file_path: str) -> Self:
+        try:
+            with open(file_path, 'r') as config_file:
+                discord_config = json.load(config_file)['discord_webhook']
+            return cls(discord_config['id'], discord_config['token'])
+        except Exception as e:
+            logging.error(f"Error: {e}")
+    
+    def execute(self, data: Message, wait: bool = False) -> requests.Response:
+        return requests.post(f'{self.DISCORD_URL}/webhooks/{self.id}/{self.token}?wait={wait}', json=asdict(data))
