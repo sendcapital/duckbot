@@ -15,11 +15,6 @@
 				"internalType": "address",
 				"name": "_oracleAddress",
 				"type": "address"
-			},
-			{
-				"internalType": "int256",
-				"name": "_MAX_PRICE_E9",
-				"type": "int256"
 			}
 		],
 		"stateMutability": "nonpayable",
@@ -123,12 +118,6 @@
 				"internalType": "address",
 				"name": "oracleAddress",
 				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "int256",
-				"name": "maxPriceE9",
-				"type": "int256"
 			}
 		],
 		"name": "MarketCreated",

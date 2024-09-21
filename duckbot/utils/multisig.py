@@ -28,7 +28,7 @@ oracle_abi = [
     }
 ]
 
-oracle_address = "0x501E90247c71146F195F6410Ba0f10bF63FB13C2"
+oracle_address = "0x3A0d54AE4d623De4c345b13eE95B9C7b51318b64"
 
 def fetch_en_data(w3, question_id: str, outcome: bool): 
     try:
@@ -40,7 +40,7 @@ def fetch_en_data(w3, question_id: str, outcome: bool):
         print(f"Error: {e}")
 
 # Example parameters
-question_id = "0x77616435a5de1cbdba13641e96da6ce9505613082ee8769c2a4d32dcc268eb6c"
+question_id = "0x8fe65c1ff96f6bd9a6f91fdf7c7911063867b67667a5127cd7c015cc4233d1f4"
 outcome = True
 
 # Fetch and print the encoded data
