@@ -1,5 +1,5 @@
 import requests
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 DISCORD_URL = 'https://discord.com/api'
 
@@ -38,11 +38,15 @@ class Embed:
 
 @dataclass
 class Message:
-    """
+    '''
     required: one of `content`, `file`, `embeds`, `poll`
     the combined sum of characters in all `title`, `description`, `field.name`, `field.value`, `footer.text`, and `author.name` fields across all embeds attached to a message must not exceed 6000 characterss. Violating any of these constraints will result in a `Bad Request` response.
     Embeds are deduplicated by URL. If a message contains multiple embeds with the same URL, only the first is shown.
-    """
+    '''
     content: str | None = None  # the message contents (up to 2000 characters)
     username: str | None = None  # override the default username of the webhook
     embeds: list[Embed] | None = None  # embedded `rich` content
+
+
+def execute(data: Message, webhook: Webhook, wait: bool = False, url: str = DISCORD_URL):
+    return requests.post(f'{url}/webhooks/{webhook.id}/{webhook.token}?wait={wait}', json=asdict(data))
