@@ -89,8 +89,7 @@ class Trade:
         return TRADE_ROUTES
       
       receiver_address = message[0].lower()
-      decimals = 18
-      amount = float(message[1])/(10 ** decimals)
+      amount = float(message[1])
       
       if amount < 5:
         text = "Minimum amount is 5"
@@ -106,11 +105,10 @@ class Trade:
         'to': checksum_receiver_address
       })
       
-      
       transaction = {
         'from': acct2.address,
         'to': checksum_receiver_address,
-        'value': amount,
+        'value': self.w3.to_wei(amount, 'ether'),
         'nonce': self.w3.eth.get_transaction_count(checksum_address),
         'gas': gas_limit,
         'gasPrice': self.w3.eth.gas_price,
@@ -120,7 +118,10 @@ class Trade:
 
       tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
       tx = self.w3.eth.get_transaction(tx_hash)    
-      text = "Funds sent successfully!"
+      text = (
+        f"Transaction sent to {receiver_address} for {amount} ETH\n"
+        f"Transaction hash: {tx_hash}"
+      )
 
       keyboard = self.get_trade_keyboard()
       keyboard_markup = InlineKeyboardMarkup(keyboard)

@@ -1,13 +1,11 @@
-import sys
-import csv
-import logging
-from io import StringIO
 from dataclasses import dataclass
-import json
 from models import (
   User, 
-  Wallet
+  Wallet,
+  Market
 )
+from models import Position as PositionModel
+
 from decimal import Decimal
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -148,6 +146,113 @@ class WalletInterface(BaseQuery):
       logger.error(f"Error deleting wallet: {e}")
       self.session.rollback()
       raise
+    
+class PositionInterface(BaseQuery):
+
+  def _exists(self, telegram_user_id: str, market_id) -> bool:
+    query = select(PositionModel).where(PositionModel.telegram_user_id == int(telegram_user_id) and PositionModel.market_id == int(market_id)) 
+    try:
+      result = self.get_row_by_query(query)
+      if result:
+        return result
+      return None
+    except Exception as e:
+      raise
+
+  def create_if_not_exists(self, telegram_user_id: str, market_id: str, **kwargs) -> bool:
+    if self._exists(telegram_user_id, market_id) == None:
+      new_position = PositionModel(telegram_user_id=int(telegram_user_id), market_id=int(market_id), **kwargs)
+      try:
+        self.session.add(new_position)
+        self.session.commit()
+        return True
+      except Exception as e:
+        self.session.rollback()
+        raise
+    return False
+  
+  def fetch_positions(self, telegram_user_id: str) -> tuple:
+    query = select(PositionModel).where(PositionModel.telegram_user_id == telegram_user_id)
+    try:
+      result = self.get_rows_by_query(query)
+      return result
+    except Exception as e:
+      raise
+   
+  def fetch_position_data(self, telegram_user_id:str,  market_id: str = None) -> tuple:
+    query = select(PositionModel).where(PositionModel.market_id == market_id and PositionModel.telegram_user_id == telegram_user_id)
+    try:
+      result = self.get_row_by_query(query)
+      return result
+    except Exception as e:
+      raise
+  
+  def update_position_data(self, telegram_user_id: str, market_id: str = None, **kwargs) -> None:
+    if self._exists(telegram_user_id, market_id):
+      query = update(PositionModel).where(PositionModel.market_id == market_id and PositionModel.telegram_user_id == telegram_user_id).values(**kwargs)
+      try:
+        self.execute_query_and_commit(query)
+      except Exception as e:
+        self.session.rollback()
+        raise
+    else:
+      self.create_if_not_exists(telegram_user_id, market_id=str(market_id), **kwargs)
+      
+    
+class MarketInterface(BaseQuery):
+
+  def _exists(self, market_id: str) -> bool:
+    query = select(Market).where(Market.market_id == int(market_id))
+    try:
+      result = self.get_row_by_query(query)
+      if result:
+        return result
+      return None
+    except Exception as e:
+      raise
+
+  def create_if_not_exists(self, market_id: str, **kwargs) -> bool:
+    if self._exists(market_id) == None:
+      new_market = Market(market_id=int(market_id), **kwargs)
+      try:
+        self.session.add(new_market)
+        self.session.commit()
+        return True
+      except Exception as e:
+        self.session.rollback()
+        raise
+    return False
+   
+  def fetch_market_data(self, market_id: str = None) -> tuple:
+    query = select(Market).where(Market.market_id == market_id)
+    try:
+      result = self.get_row_by_query(query)
+      return result
+    except Exception as e:
+      raise
+  
+  def update_market_data(self, market_id: str = None, **kwargs) -> None:
+    if self._exists(market_id):
+      query = update(Market).where(Market.market_id == market_id).values(**kwargs)
+      try:
+        self.execute_query_and_commit(query)
+      except Exception as e:
+        self.session.rollback()
+        raise
+    else:
+      self.create_if_not_exists(market_id=str(market_id), **kwargs)
+      
+  def fetch_market_category(self, category: str) -> tuple:
+    query = select(Market).where(Market.category == category)
+    try:
+      result = self.get_rows_by_query(query)
+      return result
+    except Exception as e:
+      raise
+  
+  
+  
+    
 
 class AirDaoDB:
 
@@ -161,6 +266,8 @@ class AirDaoDB:
 
     self.user_interface = UserInterface(self.session)
     self.wallet_interface = WalletInterface(self.session)
+    self.market_interface = MarketInterface(self.session)
+    self.position_interface = PositionInterface(self.session)
     
     
   def open_connection(self):

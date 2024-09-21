@@ -31,17 +31,16 @@ class MainMenu:
     keyboard = [
       [
         InlineKeyboardButton("📈 Prediction Market", callback_data=str(PREDICTION_MANAGEMENT)),
-        InlineKeyboardButton("🌐 AirDao Explorer", callback_data=str(EXPLORER_MANAGEMENT))
+        InlineKeyboardButton("💰 Manage Wallets", callback_data=str(WALLET_MANAGEMENT)),
       ],
       [
         InlineKeyboardButton("📈 Trade AirDao", callback_data=str(TRADE_MANAGEMENT)),
-        InlineKeyboardButton("💰 Manage Wallets", callback_data=str(WALLET_MANAGEMENT)),
+        InlineKeyboardButton("🌐 AirDao Explorer", callback_data=str(EXPLORER_MANAGEMENT))
       ],
     ]
     return keyboard
   
   async def main_menu(self, update: Update,  context: ContextTypes.DEFAULT_TYPE):
-    
     keyboard = self.get_main_menu_keyboard()
     reply_markup = InlineKeyboardMarkup(keyboard)
     text = (

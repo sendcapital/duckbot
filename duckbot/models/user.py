@@ -20,3 +20,4 @@ class User(Base):
   )
 
   wallets = relationship("Wallet", back_populates="user")
+  positions = relationship("Position", back_populates="user")

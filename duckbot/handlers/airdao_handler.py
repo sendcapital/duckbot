@@ -1,12 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from warnings import filterwarnings
-import time
-import redis
 import asyncio
-from functools import wraps
-import numpy as np
-from datetime import datetime, timezone
 from web3 import Web3
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply, Chat
 from telegram.warnings import PTBUserWarning
@@ -15,7 +10,6 @@ from telegram.ext import (
   CommandHandler,
   ContextTypes,
   ConversationHandler,
-  CallbackContext,
   Application
 )
 
@@ -67,13 +61,13 @@ class AirDaoHandler:
     self.explorer_routes = Explorer(self, self.config, self.w3)
     self.explorer_management = self.explorer_routes.explorer_management
     
-    self.wallet_routes = Wallet(self, self.config, self.w3, self.cipher, self.db)
+    self.wallet_routes = Wallet(self, self.config, self.cipher, self.db)
     self.wallet_management = self.wallet_routes.wallet_management
     
     self.trade_routes = Trade(self, self.config, self.w3, self.cipher, self.db)
     self.trade_management = self.trade_routes.trade_management
     
-    self.prediction_routes = Prediction(self, self.config, self.w3, self.cipher, self.db)
+    self.prediction_routes = Prediction(self, self.config, self.cipher, self.db)
     self.prediction_management = self.prediction_routes.prediction_management
     
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy()) # Fix RuntimeError: There is no current event loop in thread 'Thread-1'.

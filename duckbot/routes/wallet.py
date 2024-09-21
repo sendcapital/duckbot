@@ -1,3 +1,7 @@
+import asyncio
+from aiohttp import ClientSession
+from async_timeout import timeout
+import ssl
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply, Chat
 from telegram.ext import (
   CallbackQueryHandler,
@@ -8,7 +12,8 @@ from telegram.ext import (
   CommandHandler
 )
 from utils import (
-  init_logger
+  init_logger,
+  fetch_eth_balance
 )
 from consts import (
   QUERY_ROUTES,
@@ -23,14 +28,17 @@ from web3 import Web3
 logger = init_logger(__name__)
 
 class Wallet:
-  def __init__(self, airdao_handler, config, w3, cipher, db):
+  def __init__(self, airdao_handler, config, cipher, db):
     self.config = config
-    self.w3: Web3.HTTPProvider = w3
+    self.w3: Web3.HTTPProvider = Web3(Web3.HTTPProvider(self.config["airdao_test_rpc"]))
     self.airdao_handler = airdao_handler
     self.cipher = cipher
     self.db = db
     self.wallet_interface = self.db.wallet_interface
     self.main_menu = self.airdao_handler.main_menu_routes.get_main_menu()
+    self.wallet_semaphore = asyncio.Semaphore(64)
+    self.sslcontext = ssl.create_default_context()
+
     
   def get_wallet_keyboard(self, user_id):
     existing_wallet = self.wallet_interface.fetch_wallet_bool(user_id=user_id)
@@ -61,6 +69,20 @@ class Wallet:
   
   async def wallet_management(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     text = ("Explore AirDao Wallets! What do you want to do?")
+    user_id = update.callback_query.from_user.id
+    wallet_exists = self.wallet_interface.fetch_wallet_bool(user_id=user_id)
+    if wallet_exists:
+      wallet_data = self.wallet_interface.fetch_wallet_data(user_id=user_id)
+      address = wallet_data.address
+      label = wallet_data.label
+      balance = fetch_eth_balance(self.w3, address)
+      text += (
+        f"\n\nLabel: {label}\n"
+        f"Address: {address}\n"
+        f"Balance: {balance} AMB"
+      )
+      
+    
     user_id = update.callback_query.from_user.id
 
     keyboard = self.get_wallet_keyboard(user_id)
@@ -145,6 +167,21 @@ class Wallet:
     
     address = message[0].lower()
     checksum_address = self.w3.to_checksum_address(address)
+    
+    url = "https://faucet-api.ambrosus-test.io/sendto/" + checksum_address
+
+    try:
+      async with self.wallet_semaphore:
+        async with timeout(600):
+          async with ClientSession() as session:
+            async with session.get(url, ssl=self.sslcontext) as response:
+              logger.info(f"Funding Wallet: {address}")
+              text = f"Wallet funded successfully! Check your balance."
+              
+    except Exception as e:
+      await update.message.reply_text(f"Error funding wallet: {str(e)}")
+      logger.error(f"Error funding wallet {str(e)}")
+      text = "Error funding wallet. Please try again later."
     
     keyboard = self.get_wallet_keyboard(user_id)
     keyboard_markup = InlineKeyboardMarkup(keyboard)
