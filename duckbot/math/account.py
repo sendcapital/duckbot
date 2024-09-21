@@ -7,8 +7,8 @@ from .position import Position
 
 @dataclass
 class Account:
-    balance: Notional
     position: Position
+    balance: Notional = 0
 
     def swap(self, matched_position: Position) -> Position:
         self.position.size -= matched_position.size
@@ -27,9 +27,9 @@ class Account:
 
     def settle(self) -> Notional:
         # settle account if they have margin
-        if self.available_margin() > 0:
-            pnl = self.worst_pnl()
-            self.position.notional -= pnl
-            return pnl
+        available = self.available_margin()
+        if available > 0:
+            self.position.notional += available
+            return available
         else:
             return 0

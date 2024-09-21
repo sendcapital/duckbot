@@ -71,6 +71,13 @@ class OrderBook:
                 next_match = Position()
             return Position(size=next_match.size + matched_maker_size, notional=next_match.notional + maker_price * matched_maker_size)
 
+    def match_accounts(self, maker: Account, taker: Account, taker_price: Price, taker_size: Size):
+        match_maker = self.match(taker_price, taker_size)
+        taker.swap(match_maker)
+        match_maker.size *= -1
+        maker.swap(match_maker)
+
+
     def pretty(self) -> str:
         l_ask = (f'{self.price(i):5}% | {-self.size(i):5}' for i in range(self.len_book - 1, self.ask_index - 1, -1))
         l_bid = (f'{self.price(i):5}% | {self.size(i):5}' for i in range(self.ask_index - 1, -1, -1))
