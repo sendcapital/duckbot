@@ -8,6 +8,7 @@ from .types import *
 class Position:
     size: Size = 0
     notional: Notional = 0
+    max_price: Price = 100
 
     def from_price(cls: Self, price: Price, size: Size) -> Self:
         return cls(size=size, notional=price * size)
