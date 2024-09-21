@@ -43,3 +43,8 @@ The orderbook is stored in an offchain PostgreSQL database. The AMM gridbot para
 The matching engine logic is also conducted offchain whenever a user attempts to bet, which then submits the match onchain to complete the trade.
 
 The AMM logic is embedded in the matching engine which replaces filled Asks with Bids one price level lower, and filled Bids with Asks one price level higher.
+
+### UI
+Users interact with the Telegram Bot to input their actions, including wallet creation & management, deposit, withdrawal, betting.
+
+There is also a Discord Webhook for Trading Alerts in https://discord.gg/n7uuEhFD.
