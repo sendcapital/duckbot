@@ -15,168 +15,165 @@ interface IOracle {
 }
 
 contract PredictionMarket is ReentrancyGuard, Ownable {
-    string public question;
     bytes32 public questionId;
-    uint256 public endTime;
+    string public question;
     address public oracleAddress;
-    bool public isResolved;
-    bool public outcome;
+    uint256 public endTime;
 
     uint256 public resolutionTime;
     uint256 public constant DISPUTE_PERIOD = 3 minutes;
 
-    int256 public MAX_PRICE;
+    int256 public matchNonce;
 
-    int256 public nonce;
+    bool public isResolved;
+    bool public outcome;
+
+    int256 public MAX_PRICE_E9;
 
     address public settlerAddress;
 
-    mapping(address => bool) public hasClaimed;
-
-    mapping(address => int256) public userBalance;
-    mapping(address => int256) public userSize;
-    mapping(address => int256) public userNotional;
+    mapping(address => int256) public userBalanceE18;
+    mapping(address => int256) public userSizeE9;
+    mapping(address => int256) public userNotionalE18;
 
     event MarketCreated(
         string question,
         uint256 endTime,
         address oracleAddress,
-        int256 maxPrice
+        int256 maxPriceE9
     );
-    event Deposit(address indexed user, uint256 amount);
-    event Withdrawal(address indexed user, uint256 amount);
+    event Deposit(address indexed user, uint256 amountE18);
+    event Withdrawal(address indexed user, uint256 amountE18);
     event PositionUpdated(
         address indexed user,
-        int256 newSize,
-        int256 newNotional
+        int256 newSizeE9,
+        int256 newNotionalE18
     );
     event MarketSettled(
         address indexed user,
-        int256 settledSize,
-        int256 settledNotional
+        int256 settledSizeE9,
+        int256 settledNotionalE18
     );
     event MarketResolved(bool outcome);
     event AccountsMatched(
         address indexed maker,
         address indexed taker,
-        int256 size,
-        int256 notional,
+        int256 sizeE9,
+        int256 notionalE18,
         int256 newNonce
     );
-
-    event Debug(int256 uintNumber, int256 intNumber);
 
     constructor(
         string memory _question,
         uint256 _endTime,
         address _oracleAddress,
-        int256 _MAX_PRICE
+        int256 _MAX_PRICE_E9
     ) Ownable(msg.sender) {
         question = _question;
         questionId = keccak256(abi.encodePacked(question));
         endTime = _endTime;
         oracleAddress = _oracleAddress;
-        MAX_PRICE = _MAX_PRICE;
-        nonce = 0;
+        MAX_PRICE_E9 = _MAX_PRICE_E9;
+        matchNonce = 0;
         settlerAddress = address(this);
 
-        emit MarketCreated(_question, _endTime, _oracleAddress, _MAX_PRICE);
+        emit MarketCreated(_question, _endTime, _oracleAddress, _MAX_PRICE_E9);
     }
 
     function deposit() external payable {
-        userBalance[msg.sender] += int256(msg.value); // Cast msg.value to int256
+        userBalanceE18[msg.sender] += int256(msg.value); // Cast msg.value to int256
         emit Deposit(msg.sender, msg.value);
     }
 
-    function withdraw(uint256 amount) external nonReentrant {
-        if (isResolved && userSize[msg.sender] != 0) settleMarket(msg.sender);
+    function withdraw(uint256 amountE18) external nonReentrant {
+        if (isResolved && userSizeE9[msg.sender] != 0) settleMarket(msg.sender);
 
-        userBalance[msg.sender] -= int256(amount);
-        require(0 <= availableMargin(msg.sender), "Insufficient funds");
+        userBalanceE18[msg.sender] -= int256(amountE18);
+        require(0 <= availableMarginE18(msg.sender), "Insufficient funds");
 
-        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        (bool success, ) = payable(msg.sender).call{value: amountE18}("");
         require(success, "ETH transfer failed");
 
-        emit Withdrawal(msg.sender, amount);
+        emit Withdrawal(msg.sender, amountE18);
     }
 
-    function worstPNL(address userAddress) public view returns (int256 pnl) {
-        int256 worstExitNotional = 0;
-        if (userSize[userAddress] < 0)
-            worstExitNotional = MAX_PRICE * userSize[userAddress];
+    function worstPnlE18(address userAddress) public view returns (int256 pnl) {
+        int256 worstExitNotionalE18 = 0;
+        if (userSizeE9[userAddress] < 0)
+            worstExitNotionalE18 = MAX_PRICE_E9 * userSizeE9[userAddress];
 
-        return worstExitNotional - userNotional[userAddress];
+        return worstExitNotionalE18 - userNotionalE18[userAddress];
     }
 
-    function availableMargin(
+    function availableMarginE18(
         address userAddress
     ) public view returns (int256 margin) {
-        return userBalance[userAddress] + worstPNL(userAddress);
+        return userBalanceE18[userAddress] + worstPnlE18(userAddress);
     }
 
     function matchAccounts(
         address makerAddress,
         address takerAddress,
-        int256 matchedMakerSize,
-        int256 matchedMakerNotional,
+        int256 matchedMakerSizeE9,
+        int256 matchedMakerNotionalE18,
         int256 inputNonce
     ) public onlyOwner {
-        require(inputNonce == nonce + 1, "Incorrect nonce");
+        require(inputNonce == matchNonce + 1, "Incorrect nonce");
 
-        userSize[makerAddress] -= matchedMakerSize;
-        userNotional[makerAddress] -= matchedMakerNotional;
+        userSizeE9[makerAddress] -= matchedMakerSizeE9;
+        userNotionalE18[makerAddress] -= matchedMakerNotionalE18;
         require(
-            0 <= availableMargin(makerAddress) ||
+            0 <= availableMarginE18(makerAddress) ||
                 makerAddress == settlerAddress,
             "Insufficient margin for maker"
         );
 
-        userSize[takerAddress] += matchedMakerSize;
-        userNotional[takerAddress] += matchedMakerNotional;
+        userSizeE9[takerAddress] += matchedMakerSizeE9;
+        userNotionalE18[takerAddress] += matchedMakerNotionalE18;
         require(
-            0 <= availableMargin(takerAddress) ||
+            0 <= availableMarginE18(takerAddress) ||
                 takerAddress == settlerAddress,
             "Insufficient margin for taker"
         );
 
-        nonce++;
+        matchNonce++;
 
         emit PositionUpdated(
             makerAddress,
-            userSize[makerAddress],
-            userNotional[makerAddress]
+            userSizeE9[makerAddress],
+            userNotionalE18[makerAddress]
         );
         emit PositionUpdated(
             takerAddress,
-            userSize[takerAddress],
-            userNotional[takerAddress]
+            userSizeE9[takerAddress],
+            userNotionalE18[takerAddress]
         );
         emit AccountsMatched(
             makerAddress,
             takerAddress,
-            matchedMakerSize,
-            matchedMakerNotional,
-            nonce
+            matchedMakerSizeE9,
+            matchedMakerNotionalE18,
+            matchNonce
         );
     }
 
     function settleMarket(address userAddress) internal {
         require(isResolved, "Market is not resolved yet");
 
-        int256 matchedMakerSize = userSize[userAddress];
-        int256 matchedMakerNotional = 0;
-        if (outcome) matchedMakerNotional = MAX_PRICE * matchedMakerSize;
+        int256 matchedMakerSizeE9 = userSizeE9[userAddress];
+        int256 matchedMakerNotionalE18 = 0;
+        if (outcome) matchedMakerNotionalE18 = MAX_PRICE_E9 * matchedMakerSizeE9;
 
         // Call matchAccounts with the updated types and nonce increment
         matchAccounts(
             settlerAddress,
             userAddress,
-            matchedMakerSize,
-            matchedMakerNotional,
-            nonce + 1
+            matchedMakerSizeE9,
+            matchedMakerNotionalE18,
+            matchNonce + 1
         );
 
-        emit MarketSettled(userAddress, matchedMakerSize, matchedMakerNotional);
+        emit MarketSettled(userAddress, matchedMakerSizeE9, matchedMakerNotionalE18);
     }
 
     function resolveOracle() external onlyOwner {
