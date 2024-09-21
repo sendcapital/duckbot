@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IOracle {
-    function getOutcome(bytes32 questionId) external view returns (bool, bool, bool);
+    function getOutcome(bytes32 questionId) external view returns (int256, bool, bool, bool);
     function getResolutionTimestamp(bytes32 questionId) external view returns (uint256);
 }
 
@@ -20,31 +20,26 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     uint256 public resolutionTime;
     uint256 public constant DISPUTE_PERIOD = 3 minutes;
 
-    uint256 public MAX_PRICE;
-    uint256 public oraclePrice;
+    int256 public MAX_PRICE;
+    int256 public oraclePrice;
 
-    uint256 public totalYesAmount;
-    uint256 public totalNoAmount;
-
-    uint256 public nonce;
+    int256 public nonce;
 
     address public settlerAddress;
 
-    mapping(address => uint256) public yesBets;
-    mapping(address => uint256) public noBets;
     mapping(address => bool) public hasClaimed;
 
     mapping(address => int256) public userBalance;
     mapping(address => int256) public userSize;
     mapping(address => int256) public userNotional;
 
-    event MarketCreated(string question, uint256 endTime, address oracleAddress, uint256 maxPrice);
+    event MarketCreated(string question, uint256 endTime, address oracleAddress, int256 maxPrice);
     event Deposit(address indexed user, int256 amount);
     event Withdrawal(address indexed user, int256 amount);
     event PositionUpdated(address indexed user, int256 newSize, int256 newNotional);
     event MarketSettled(address indexed user, int256 settledSize, int256 settledNotional);
-    event MarketResolved(bool outcome, uint256 finalPrice);
-    event AccountsMatched(address indexed maker, address indexed taker, int256 size, int256 notional, uint256 newNonce);
+    event MarketResolved(bool outcome);
+    event AccountsMatched(address indexed maker, address indexed taker, int256 size, int256 notional, int256 newNonce);
 
     event Debug(int256 uintNumber, int256 intNumber);
 
@@ -52,7 +47,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         string memory _question,
         uint256 _endTime,
         address _oracleAddress,
-        uint256 _MAX_PRICE   
+        int256 _MAX_PRICE   
     ) Ownable(msg.sender) {
         question = _question;
         questionId = keccak256(abi.encodePacked(question));
@@ -70,56 +65,47 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         emit Deposit(msg.sender, int256(msg.value));   // Emit as int256
     }
 
-    function withdraw(int256 amount) external nonReentrant {
+    function withdraw(uint256 amount) external nonReentrant {
         if (isResolved && userSize[msg.sender] != 0) {
             settleMarket(msg.sender);
         }
 
-        uint256 userMargin = availableMargin(msg.sender);
-
-        emit Debug(amount, amount);
-        emit Debug(userBalance[msg.sender], int256(userMargin));
-
+        require(int256(amount) <= availableMargin(msg.sender), "Insufficient funds");
+        userBalance[msg.sender] -= int256(amount); 
         
-        // Convert userMargin (uint256) to int256 for the comparison
-        require(userBalance[msg.sender] >= amount + int256(userMargin), "Insufficient funds");
-        
-        userBalance[msg.sender] -= amount; 
-        
-        (bool success, ) = payable(msg.sender).call{value: uint256(amount)}("");  // Ensure amount is cast to uint256 for transfer
+        (bool success, ) = payable(msg.sender).call{value: amount}("");  
         require(success, "ETH transfer failed");
 
-        emit Withdrawal(msg.sender, amount);
+        emit Withdrawal(msg.sender, int256(amount));
     }
-
 
     function worstPNL(address userAddress) public view returns (int256 pnl) {
         int256 worstExitNotional = 0;
         if (userSize[userAddress] < 0) {
-            worstExitNotional = int256(MAX_PRICE) * userSize[userAddress];
+            worstExitNotional = MAX_PRICE * userSize[userAddress];
         }
 
-        return worstExitNotional - int256(userNotional[userAddress]);
+        return worstExitNotional - userNotional[userAddress];
     }
     
-    function availableMargin(address userAddress) public view returns (uint256 margin) {
-        int256 balance = int256(userBalance[userAddress]);
+    function availableMargin(address userAddress) public view returns (int256 margin) {
+        int256 balance = userBalance[userAddress];
         int256 pnl = worstPNL(userAddress);
-        return uint256(balance + pnl);
+        return balance + pnl;
     }
     
-    function matchAccounts(address makerAddress, address takerAddress, int256 matchedMakerSize, int256 matchedMakerNotional, uint256 inputNonce) public onlyOwner {
+    function matchAccounts(address makerAddress, address takerAddress, int256 matchedMakerSize, int256 matchedMakerNotional, int256 inputNonce) public onlyOwner {
         require(inputNonce == nonce + 1, "Incorrect nonce");
 
         userSize[makerAddress] -= matchedMakerSize;
         userNotional[makerAddress] -= matchedMakerNotional;
 
-        require(int256(availableMargin(makerAddress)) >= 0 || makerAddress == settlerAddress, "Insufficient margin for maker");
+        require(availableMargin(makerAddress) >= 0 || makerAddress == settlerAddress, "Insufficient margin for maker");
 
         userSize[takerAddress] += matchedMakerSize;
         userNotional[takerAddress] += matchedMakerNotional;
         
-        require(int256(availableMargin(takerAddress)) >= 0 || takerAddress == settlerAddress, "Insufficient margin for taker");
+        require(availableMargin(takerAddress) >= 0 || takerAddress == settlerAddress, "Insufficient margin for taker");
 
         nonce++;
 
@@ -133,8 +119,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
 
         int256 matchedMakerSize = userSize[userAddress];
         
-        // Convert oraclePrice (uint256) to int256 before multiplying it with matchedMakerSize
-        int256 matchedMakerNotional = int256(oraclePrice) * (matchedMakerSize > 0 ? matchedMakerSize : -matchedMakerSize);
+        int256 matchedMakerNotional = oraclePrice * (matchedMakerSize > 0 ? matchedMakerSize : -matchedMakerSize);
         
         // Call matchAccounts with the updated types and nonce increment
         matchAccounts(settlerAddress, userAddress, matchedMakerSize, matchedMakerNotional, nonce + 1);
@@ -142,12 +127,11 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         emit MarketSettled(userAddress, matchedMakerSize, matchedMakerNotional);
     }
 
-
-    function resolveOracle(uint256 finalPrice) external onlyOwner {
+    function resolveOracle() external onlyOwner {
         require(block.timestamp >= endTime, "Market has not ended yet");
         require(!isResolved, "Market already resolved");
 
-        (bool _outcome, bool resolved, bool inDispute) = IOracle(oracleAddress).getOutcome(questionId);
+        (int256 finalPrice, bool _outcome, bool resolved, bool inDispute) = IOracle(oracleAddress).getOutcome(questionId);
         
         require(resolved, "Outcome not yet available from Oracle");
         require(!inDispute, "Outcome is currently under dispute");
@@ -156,21 +140,19 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         require(block.timestamp > oracleResolutionTime + DISPUTE_PERIOD, "Dispute period not over");
 
         outcome = _outcome;
-        oraclePrice = finalPrice; 
+        oraclePrice = finalPrice;
         isResolved = true;
         resolutionTime = block.timestamp;
 
-        emit MarketResolved(outcome, finalPrice);
+        emit MarketResolved(outcome);
     }
 
     function getMarketInfo() external view returns (
         string memory _question,
         uint256 _endTime,
         bool _isResolved,
-        bool _outcome,
-        uint256 _totalYesAmount,
-        uint256 _totalNoAmount
+        bool _outcome
     ) {
-        return (question, endTime, isResolved, outcome, totalYesAmount, totalNoAmount);
+        return (question, endTime, isResolved, outcome);
     }
 }
