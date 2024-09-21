@@ -26,7 +26,6 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     uint256 public constant DISPUTE_PERIOD = 3 minutes;
 
     int256 public MAX_PRICE;
-    int256 public oraclePrice;
 
     int256 public nonce;
 
@@ -171,7 +170,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
             settlerAddress,
             userAddress,
             matchedMakerSize,
-            oraclePrice * matchedMakerSize,
+            (outcome ? MAX_PRICE : 0) * matchedMakerSize,
             nonce + 1
         );
 
@@ -183,7 +182,6 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         require(!isResolved, "Market already resolved");
 
         (
-            int256 finalPrice,
             bool _outcome,
             bool resolved,
             bool inDispute
@@ -200,7 +198,6 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         );
 
         outcome = _outcome;
-        oraclePrice = finalPrice;
         isResolved = true;
         resolutionTime = block.timestamp;
 

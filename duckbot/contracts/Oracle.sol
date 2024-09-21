@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract Oracle is Ownable {
     uint256 public constant DISPUTE_PERIOD = 3 minutes;
     uint256 public constant DISPUTE_STAKE = 30 ether;
-    uint256 public oraclePrice;
 
     mapping(bytes32 => bool) public outcomes;
     mapping(bytes32 => bool) public isResolved;
@@ -19,9 +18,8 @@ contract Oracle is Ownable {
 
     constructor() Ownable(msg.sender) {}
 
-    function reportOutcome(bytes32 questionId, bool outcome, uint256 finalPrice) external onlyOwner {
+    function reportOutcome(bytes32 questionId, bool outcome) external onlyOwner {
         outcomes[questionId] = outcome;
-        oraclePrice = finalPrice;
         resolutionTimestamps[questionId] = block.timestamp;
         isResolved[questionId] = true;
         emit OutcomeReported(questionId, outcome);
@@ -56,7 +54,7 @@ contract Oracle is Ownable {
     }
 
     function getOutcome(bytes32 questionId) external view returns (uint256, bool, bool, bool) {
-        return (oraclePrice, outcomes[questionId], isResolved[questionId], disputeInitiator[questionId] != address(0));
+        return (outcomes[questionId], isResolved[questionId], disputeInitiator[questionId] != address(0));
     }
 
     function getResolutionTimestamp(bytes32 questionId) external view returns (uint256){
