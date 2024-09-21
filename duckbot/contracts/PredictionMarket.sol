@@ -28,7 +28,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     bool public isResolved;
     bool public outcome;
 
-    int256 public MAX_PRICE_E9;
+    int256 public MAX_PRICE_E9 = 1_000_000_000;
 
     address public settlerAddress;
 
@@ -39,8 +39,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     event MarketCreated(
         string question,
         uint256 endTime,
-        address oracleAddress,
-        int256 maxPriceE9
+        address oracleAddress
     );
     event Deposit(address indexed user, uint256 amountE18);
     event Withdrawal(address indexed user, uint256 amountE18);
@@ -66,18 +65,16 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     constructor(
         string memory _question,
         uint256 _endTime,
-        address _oracleAddress,
-        int256 _MAX_PRICE_E9
+        address _oracleAddress
     ) Ownable(msg.sender) {
         question = _question;
         questionId = keccak256(abi.encodePacked(question));
         endTime = _endTime;
         oracleAddress = _oracleAddress;
-        MAX_PRICE_E9 = _MAX_PRICE_E9;
         matchNonce = 0;
         settlerAddress = address(this);
 
-        emit MarketCreated(_question, _endTime, _oracleAddress, _MAX_PRICE_E9);
+        emit MarketCreated(_question, _endTime, _oracleAddress);
     }
 
     function deposit() external payable {
