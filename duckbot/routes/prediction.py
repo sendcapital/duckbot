@@ -53,6 +53,9 @@ class Prediction:
         InlineKeyboardButton("📊 Business", callback_data="category_business"),
       ],
       [
+        InlineKeyboardButton("💰 Claim Settlement", callback_data="claim_settlement"),
+      ],
+      [
         InlineKeyboardButton("⬅️ Go Back", callback_data=str(MAIN_MENU)),
       ]
     ]
@@ -78,6 +81,44 @@ class Prediction:
     if operation == 'send_funds':
       await self.send_funds(update, context)
     return PREDICTION_ROUTES
+  
+  async def claim_settlement(self, update: Update, context: CallbackContext) -> int:
+    query = update.callback_query
+    await query.answer()
+    
+    # check if position exists assume 1 position in db
+    positions_data = self.position_interface.fetch_positions(telegram_user_id=query.from_user.id)
+    
+    if positions_data:
+      account = Account(
+        Position(positions_data[0].size, positions_data[0].notional),
+        balance=0
+      )
+      
+      text = (
+        f"🔮 Settlement claimed!\n"
+        f"Your wallet balance is now {account.balance} AMB\n"
+      )
+      keyboard = [
+        [
+          InlineKeyboardButton("🔮 Make Another Prediction", callback_data=str(PREDICTION_MANAGEMENT)),
+          InlineKeyboardButton("⬅️ Go Back", callback_data=str(MAIN_MENU)),
+        ]
+      ]
+      reply_markup = InlineKeyboardMarkup(keyboard)
+      await query.message.reply_text(text=text, reply_markup=reply_markup)
+    else:
+      text = "You have no settlement to claim!"
+      keyboard = [
+        [
+          InlineKeyboardButton("⬅️ Go Back", callback_data=str(PREDICTION_MANAGEMENT)),
+        ]
+      ]
+      reply_markup = InlineKeyboardMarkup(keyboard)
+      await query.message.reply_text(text=text, reply_markup=reply_markup)
+    
+    return PREDICTION_ROUTES
+    
   
   async def predict_market(self, update: Update, context: CallbackContext) -> int:
     query = update.callback_query
@@ -149,6 +190,38 @@ class Prediction:
     
     return PREDICTION_ROUTES
   
+  async def withdraw_funds(self, update: Update, context: CallbackContext) -> int:
+    query = update.callback_query
+    await query.answer()
+    
+    # TODO: call function to withdraw funds from the contract which handles settlement
+    # check for funds in the contract for particular user
+    
+    # if funds exist:
+    funds_exist = False
+    
+    if funds_exist:
+      text = "Funds withdrawn successfully!"
+      keyboard = [
+        [
+          InlineKeyboardButton("⬅️ Go Back", callback_data=str(PREDICTION_MANAGEMENT)),
+        ]
+      ]
+      reply_markup = InlineKeyboardMarkup(keyboard)
+      await query.message.reply_text(text=text, reply_markup=reply_markup)
+    
+    else:
+      text = "You have no funds to withdraw!"
+      keyboard = [
+        [
+          InlineKeyboardButton("⬅️ Go Back", callback_data=str(PREDICTION_MANAGEMENT)),
+        ]
+      ]
+      reply_markup = InlineKeyboardMarkup(keyboard)
+      await query.message.reply_text(text=text, reply_markup=reply_markup)
+    
+    return PREDICTION_ROUTES
+  
   async def make_prediction(self, update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     await query.answer()
@@ -203,6 +276,7 @@ class Prediction:
         
         f"```{book.pretty()}```"
       )
+      
       bid_index = book.price_tick - book.ask_index
       
       keyboard = [
@@ -218,6 +292,9 @@ class Prediction:
           InlineKeyboardButton("🟢 50 AMB" if size == 50 else "50 AMB", callback_data="adjust_size_50"),
           InlineKeyboardButton("🟢 75 AMB" if size == 75 else "75 AMB", callback_data="adjust_size_75"),
           InlineKeyboardButton("🟢 100 AMB" if size == 100 else "100 AMB", callback_data="adjust_size_100"),
+        ],
+        [
+          InlineKeyboardButton("🏧 Withdraw Funds", callback_data="withdraw_funds"),
         ],
         [
           InlineKeyboardButton("⬅️ Go Back", callback_data=str(PREDICTION_MANAGEMENT)),
@@ -346,10 +423,7 @@ class Prediction:
       
       # TODO: carry out transaction for market maker and account on-chain
       
-      
-      # carry out settlement
-      account.settle()
-      market_maker.settle()
+      # TODO: query the nonce from the contract
       
       # update position in db for account
       if positions_data:
@@ -409,18 +483,16 @@ class Prediction:
     return PREDICTION_ROUTES
          
 
-      
-      
-  
-
   def get_handler(self):
     prediction_routes = [
       MessageHandler(filters.TEXT & filters.REPLY, self.handle_prediction_operation),
       CallbackQueryHandler(self.prediction_management, pattern=f"^{PREDICTION_MANAGEMENT}$"),
+      CallbackQueryHandler(self.claim_settlement, pattern=f"claim_settlement"),
       CallbackQueryHandler(self.predict_market, pattern=f"^category_.+$"),
       CallbackQueryHandler(self.make_prediction, pattern=f"^select_market_.+$"),
       CallbackQueryHandler(self.adjust_size, pattern=f"^adjust_size_.+$"),
       CallbackQueryHandler(self.confirm_prediction, pattern=f"^predict_.+$"),
+      CallbackQueryHandler(self.withdraw_funds, pattern=f"withdraw_funds"),
       CallbackQueryHandler(self.predict, pattern=f"^confirm_.+$"),
       CallbackQueryHandler(self.main_menu, pattern=f"^{MAIN_MENU}$"),
     ]
