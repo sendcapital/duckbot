@@ -53,7 +53,7 @@ contract Oracle is Ownable {
         emit DisputeResolved(questionId, originalOutcomeStood);
     }
 
-    function getOutcome(bytes32 questionId) external view returns (uint256, bool, bool) {
+    function getOutcome(bytes32 questionId) external view returns (bool, bool, bool) {
         return (outcomes[questionId], isResolved[questionId], disputeInitiator[questionId] != address(0));
     }
 
