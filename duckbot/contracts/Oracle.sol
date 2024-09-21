@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Oracle is Ownable {
     uint256 public constant DISPUTE_PERIOD = 3 minutes;
-    uint256 public constant DISPUTE_STAKE = 30 ether; // 30 native tokens
+    uint256 public constant DISPUTE_STAKE = 30 ether;
 
     mapping(bytes32 => bool) public outcomes;
     mapping(bytes32 => bool) public isResolved;
