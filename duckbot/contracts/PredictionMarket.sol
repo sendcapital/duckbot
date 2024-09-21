@@ -31,6 +31,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     int256 public MAX_PRICE_E9 = 1_000_000_000;
 
     address public settlerAddress;
+    address public telebotAddress;
 
     mapping(address => int256) public userBalanceE18;
     mapping(address => int256) public userSizeE9;
@@ -72,7 +73,8 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         oracleAddress = _oracleAddress;
         matchNonce = 0;
         settlerAddress = address(this);
-        
+        telebotAddress = 0x1fAa2F9830b76F499D09ff370A96E6D1B3d15B08;
+
         if (_endTime == 0) {
             endTime = 0;
         } else {
@@ -119,11 +121,13 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         int256 matchedMakerSizeE9,
         int256 matchedMakerNotionalE18,
         int256 inputNonce
-    ) public onlyOwner {
+    ) public {
+        require(msg.sender == telebotAddress || msg.sender == address(this), "Caller is not the admin");
         require(inputNonce == matchNonce + 1, "Incorrect nonce");
 
         userSizeE9[makerAddress] -= matchedMakerSizeE9;
         userNotionalE18[makerAddress] -= matchedMakerNotionalE18;
+
         require(
             0 <= availableMarginE18(makerAddress) ||
                 makerAddress == settlerAddress,
