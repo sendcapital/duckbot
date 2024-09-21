@@ -85,4 +85,4 @@ class OrderBook:
         # printing
         l_ask = (f'{self.price(i):5}% | {-self.size(i):5}' for i in range(self.len_book - 1, self.ask_index - 1, -1))
         l_bid = (f'{self.price(i):5}% | {self.size(i):5}' for i in range(self.ask_index - 1, -1, -1))
-        return f'{'\n'.join(l_ask)}\n{'-' * 15}\n price |  size\n{'-' * 15}\n{'\n'.join(l_bid)}'
+        return f'Ask {'\n'.join(l_ask)}\n{'-' * 15} \n tick size |  size \n{'-' * 15}\n{'\n'.join(l_bid)} Bid'

@@ -3,7 +3,7 @@ from telegram.ext import (
 )
 
 MARKET_MAKER_TG_ID = 7210638562
-
+MAKER_ADDRESS = "0x1fAa2F9830b76F499D09ff370A96E6D1B3d15B08"
 END = ConversationHandler.END
 
 # Stages

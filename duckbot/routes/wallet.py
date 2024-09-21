@@ -134,8 +134,29 @@ class Wallet:
       existing_wallet = self.wallet_interface.fetch_wallet_data(user_id=user_id)
       address = existing_wallet.address
       wallet_name = existing_wallet.label
-      encrypted_private_key = str(existing_wallet.encrypted_key)
-      
+      encrypted_private_key = str(existing_wallet.encrypted_key[1:])
+      text = (
+        "Deleting wallet, please save your private key!\n"
+        f"{self.cipher.decrypt_wallet(encrypted_private_key)}"
+      )
+      keyboard = [
+        [
+          InlineKeyboardButton("⬅️ Go Back", callback_data=str(MAIN_MENU)),
+        ]
+      ]
+      reply_markup = InlineKeyboardMarkup(keyboard)
+      await update.message.reply_text(text=text, reply_markup=reply_markup)
+            
+      self.wallet_interface.delete_wallet(user_id=user_id)
+      address, pk_tuple = self.cipher.create_wallet()
+      encrypted_private_key = pk_tuple[0]
+      self.wallet_interface.create_if_not_exists(
+        user_id=user_id,
+        address=address,
+        label=wallet_name,
+        encrypted_key=str(encrypted_private_key)
+      )
+            
     text = (
       f"Wallet generated successfully!\n"
       f"Name: {wallet_name}\n"

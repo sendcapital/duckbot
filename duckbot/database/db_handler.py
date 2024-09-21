@@ -137,11 +137,11 @@ class WalletInterface(BaseQuery):
       logger.error(f"Error getting wallet: {e}")
       raise
   
-  def delete_wallet(self, user_id: str, label: str) -> None:
-    query = delete(Wallet).where(Wallet.telegram_user_id == user_id, Wallet.label == label)
+  def delete_wallet(self, user_id: str) -> None:
+    query = delete(Wallet).where(Wallet.telegram_user_id == user_id)
     try:
       self.execute_query_and_commit(query)
-      logger.info(f'Wallet deleted with user_id: {user_id} and label: {label}')
+      logger.info(f'Wallet deleted with user_id: {user_id}')
     except Exception as e:
       logger.error(f"Error deleting wallet: {e}")
       self.session.rollback()
@@ -198,6 +198,14 @@ class PositionInterface(BaseQuery):
     else:
       self.create_if_not_exists(telegram_user_id, market_id=str(market_id), **kwargs)
       
+  def count_positions(self) -> int:
+      query = select(func.count()).select_from(PositionModel)
+      try:
+          result = self.session.execute(query).scalar()
+          return result
+      except Exception as e:
+          raise
+    
     
 class MarketInterface(BaseQuery):
 

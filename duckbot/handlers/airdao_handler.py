@@ -83,6 +83,7 @@ class AirDaoHandler:
     self.cipher = AESCipher(str(self.user_id), self.config)
     self.wallet_routes.cipher = self.cipher
     self.trade_routes.cipher = self.cipher
+    self.prediction_routes.cipher = self.cipher
 
     self.language_code = user.language_code
     self.username = user.username if user.username else "None"

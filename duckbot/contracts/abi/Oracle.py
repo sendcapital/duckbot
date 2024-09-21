@@ -1,4 +1,4 @@
-[
+ORACLE_ABI = """[
 	{
 		"inputs": [
 			{
@@ -343,3 +343,4 @@
 		"type": "function"
 	}
 ]
+"""

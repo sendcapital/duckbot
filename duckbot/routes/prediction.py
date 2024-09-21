@@ -1,4 +1,5 @@
 from web3 import Web3
+from datetime import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply, Chat
 from telegram.ext import (
   CallbackQueryHandler,
@@ -15,7 +16,8 @@ from consts import (
   PREDICTION_ROUTES,
   MAIN_MENU,
   PREDICTION_MANAGEMENT,
-  MARKET_MAKER_TG_ID
+  MARKET_MAKER_TG_ID,
+  MAKER_ADDRESS
 )
 from models import (
   Market,
@@ -25,6 +27,11 @@ from models import Position as PositionModel
 from utils import (
   init_logger,
   fetch_eth_balance
+)
+
+from contracts import (
+  ORACLE_ABI,
+  MARKET_ABI
 )
 
 logger = init_logger(__name__)
@@ -38,7 +45,7 @@ class Prediction:
     self.wallet_interface: Wallet = self.db.wallet_interface
     self.market_interface: Market = self.db.market_interface
     self.position_interface: PositionModel = self.db.position_interface
-    
+    self.funds = False
     self.cipher = cipher
     self.main_menu = self.airdao_handler.main_menu_routes.get_main_menu()
     
@@ -126,7 +133,7 @@ class Prediction:
     if query.data.startswith("category_"):
       category = str(query.data.split("_")[-1]) 
       
-      if category == "politics":
+      if category == "crypto":
         text = f"📈 {category} Category\n" + "Adjust the size of your order as a percentage of your available margin"
         
         markets: List[Market] = self.market_interface.fetch_market_category(category=category)[0]
@@ -173,7 +180,7 @@ class Prediction:
     if query.data.startswith("adjust_size_"):
       size = int(query.data.split("_")[-1])
       context.user_data['size'] = size
-      text = f"Size adjusted to {size}% of available margin"
+      text = f"Size adjusted to {size} AMB of available margin"
 
       await query.message.reply_text(text=text)
       
@@ -196,11 +203,36 @@ class Prediction:
     
     # TODO: call function to withdraw funds from the contract which handles settlement
     # check for funds in the contract for particular user
+      
+    if self.funds:
+      
+      
+      market_contract = self.w3.eth.contract(
+        address="0xC0ce5cdFdE42e511294DDC72d06250be36DB559B", 
+        abi=MARKET_ABI
+      )
     
-    # if funds exist:
-    funds_exist = False
-    
-    if funds_exist:
+      market_contract.functions.resolveOracle().call()
+      
+      wallet_data = self.wallet_interface.fetch_wallet_data(user_id=query.from_user.id)
+      private_key = self.cipher.decrypt_wallet(wallet_data.encrypted_key[1:])
+      wallet = self.w3.eth.account.from_key(private_key)
+      taker_address = wallet.address
+      taker_address_checksum = self.w3.to_checksum_address(taker_address)
+            
+      txn = market_contract.functions.withdraw(5).build_transaction({
+        'from': taker_address_checksum,
+        'gas': 200000, 
+        'gasPrice': self.w3.to_wei('20', 'gwei'),
+        'nonce': self.w3.eth.get_transaction_count(taker_address_checksum)
+      })
+      
+      signed_txn = self.w3.eth.account.sign_transaction(txn, private_key=private_key)
+      txn_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+      
+      logger.info(f"Withdrawal Transaction hash: 0x{txn_hash.hex()}")
+      
+      
       text = "Funds withdrawn successfully!"
       keyboard = [
         [
@@ -245,9 +277,9 @@ class Prediction:
       positions_data = self.position_interface.fetch_positions(telegram_user_id=query.from_user.id)
         
       if positions_data:
-        
+        position = positions_data[0]
         account = Account(
-          Position(positions_data[0].size, positions_data[0].notional),
+          Position(position[0].size, position[0].notional),
           balance=wallet_balance
         )
       else:
@@ -268,27 +300,30 @@ class Prediction:
         f"Default Size: {context.user_data.get('size', 0)} AMB\n"
       )
       
+      readable_created_at = market_data.created_at.strftime("%B %d, %Y %I:%M %p")
+
       orderbook_text =  (
         "🔮 Make your prediction!\n\n" +
         "📊 Category: " + market_data.category + "\n"
         "📈 Market: " + ' '.join(market_data.market_name.split('_')) + "\n"
-        "📅 Created At: " + str(market_data.created_at) + "\n\n"
+        "📅 Created At: " + str(readable_created_at) + "\n\n"
         
-        f"```{book.pretty()}```"
+        f"```{book.pretty()}```\n\n"
+        
       )
       
       bid_index = book.price_tick - book.ask_index
       
       keyboard = [
         [
-          InlineKeyboardButton(f"🟢 Yes {bid_index}/{book.price_tick - bid_index}", callback_data=f"predict_{market_id}_yes"),
-          InlineKeyboardButton(f"🔴 No {book.ask_index}/{book.price_tick - book.ask_index}", callback_data=f"predict_{market_id}_no"),
+          InlineKeyboardButton(f"🟢 Yes | Odds: {bid_index}/{book.price_tick}", callback_data=f"predict_{market_id}_yes"),
+          InlineKeyboardButton(f"🔴 No | Odds: {book.ask_index}/{book.price_tick}", callback_data=f"predict_{market_id}_no"),
         ],
         [
           InlineKeyboardButton("👟 Select Size Below", callback_data="None"),
         ],
         [
-          InlineKeyboardButton("🟢 25 AMB" if size == 25 else "25 AMB", callback_data="adjust_size_25"),
+          InlineKeyboardButton("🟢 5 AMB" if size == 5 else "5 AMB", callback_data="adjust_size_5"),
           InlineKeyboardButton("🟢 50 AMB" if size == 50 else "50 AMB", callback_data="adjust_size_50"),
           InlineKeyboardButton("🟢 75 AMB" if size == 75 else "75 AMB", callback_data="adjust_size_75"),
           InlineKeyboardButton("🟢 100 AMB" if size == 100 else "100 AMB", callback_data="adjust_size_100"),
@@ -350,11 +385,11 @@ class Prediction:
           f"```{book.pretty()}```\n\n"
           
           f"Available Margin: {available_margin}\n"
-          f"Size: {size}% of available margin\n"
+          f"Size: {(size/available_margin)*100}% of available margin\n"
           f"Payoff: {(1-(bid_index/book.price_tick))*size} AMB\n\n"
           
           f"Please confirm your prediction\n"
-          f"Order valid for 30 seconds before auto cancellation\n"
+          f"Order valid for 30 seconds before auto cancellation\n" # TODO: Add timer
         )      
         keyboard = [
           [
@@ -387,8 +422,7 @@ class Prediction:
     if query.data.startswith("confirm_"):
       market_id, prediction = query.data.split("_")[1:] # where prediction is 1 or 0 (truthy or falsey)
       
-      # TODO: call function to send bid on chain
-      
+      prediction_status = 1 if prediction == "yes" else 0
       
       # match accounts for book and decide how much funds to transfer to the vault
       # initiate order book
@@ -400,6 +434,7 @@ class Prediction:
       )
       # initiate market maker and taker account objects
       wallet_data = self.wallet_interface.fetch_wallet_data(user_id=query.from_user.id)
+      
       wallet_balance = fetch_eth_balance(self.w3, wallet_data.address)
       
       if wallet_balance > 0:
@@ -417,45 +452,83 @@ class Prediction:
 
       taker_price = book.price(book.ask_index)
       taker_size = context.user_data.get('size', 0)
-      
-      # match accounts for market maker and account
-      book.match_accounts(market_maker, account, taker_price, taker_size)
-      
+
       # TODO: carry out transaction for market maker and account on-chain
+      size = context.user_data['size']
       
-      # TODO: query the nonce from the contract
+      market_contract = self.w3.eth.contract(
+        address="0xC0ce5cdFdE42e511294DDC72d06250be36DB559B", 
+        abi=MARKET_ABI
+      )
       
+      private_key = self.cipher.decrypt_wallet(wallet_data.encrypted_key[1:])
+      wallet = self.w3.eth.account.from_key(private_key)
+      taker_address = wallet.address
+      taker_address_checksum = self.w3.to_checksum_address(taker_address)
+      
+      maker_address = MAKER_ADDRESS
+      maker_wallet = self.wallet_interface.fetch_wallet_data(user_id=MARKET_MAKER_TG_ID)
+      maker_private_key = self.cipher.decrypt_wallet(maker_wallet.encrypted_key[1:])
+      # maker_wallet = self.w3.eth.account.from_key(maker_private_key)
+      
+      input_nonce = self.position_interface.count_positions()
+      
+      position = book._match(taker_price, taker_size)
+      match_txn = market_contract.functions.matchAccounts(
+        maker_address,
+        taker_address_checksum,
+        position.size,
+        position.notional,
+        input_nonce
+        ).build_transaction({
+          'from': maker_address,
+          'gas': 200000, 
+          'gasPrice': self.w3.to_wei('20', 'gwei'),
+          'nonce': self.w3.eth.get_transaction_count(taker_address_checksum)
+      })
+        
+      signed_match_txn = self.w3.eth.account.sign_transaction(match_txn, private_key="90566d7b80ff6b0718b3acfaaeed3d12779a9112f4499a7ef33df6b8628149ef")
+      matched_txn_hash = self.w3.eth.send_raw_transaction(signed_match_txn.raw_transaction)
+      logger.info(f"Matching Transaction hash: 0x{matched_txn_hash.hex()}")
+
+      
+      transaction = market_contract.functions.deposit().build_transaction({
+          'from': wallet.address,
+          'value': size * 10**18,
+          'gas': 2000000,
+          'gasPrice': self.w3.to_wei('50', 'gwei'),
+          'nonce': self.w3.eth.get_transaction_count(wallet.address) + 1,
+      })
+      
+      signed_txn = self.w3.eth.account.sign_transaction(transaction, private_key=private_key)
+
+      txn_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+      
+      logger.info(f"Transaction hash: 0x{txn_hash.hex()}")
+    
       # update position in db for account
       if positions_data:
         self.position_interface.update_position(
           telegram_user_id=query.from_user.id,
+          market_id=market_id,
           size=account.position.size,
-          notional=account.position.notional
+          notional=account.position.notional,
+          prediction=prediction_status,
+          timestamp=datetime.now()
         )
       else:
-        self.position_interface.create_position(
+        self.position_interface.create_if_not_exists(
           telegram_user_id=query.from_user.id,
+          market_id=market_id,
           size=account.position.size,
-          notional=account.position.notional
-        )
-      
-      # update position in db for market_maker after checking for market maker position data
-      market_maker_positions_data = self.position_interface.fetch_positions(telegram_user_id=MARKET_MAKER_TG_ID)
-      if market_maker_positions_data:
-        market_maker.position.size = market_maker_positions_data[0].size
-        market_maker.position.notional = market_maker_positions_data[0].notional
-        self.position_interface.update_position(
-          telegram_user_id=MARKET_MAKER_TG_ID,
-          size=market_maker.position.size,
-          notional=market_maker.position.notional
-        )
-      else:
-        self.position_interface.create_position(
-          telegram_user_id=MARKET_MAKER_TG_ID,
-          size=market_maker.position.size,
-          notional=market_maker.position.notional
+          notional=account.position.notional,
+          prediction=prediction_status,
+          timestamp=datetime.now()
         )
         
+      bid_index = book.price_tick - book.ask_index
+      
+      self.funds = True
       text = (
         f"🔮 Prediction confirmed!\n"
         f"📊 Category: {market_data.category}\n"
@@ -463,12 +536,15 @@ class Prediction:
         f"📅 Created At: {str(market_data.created_at)}\n\n"
         
         f"Your Selection: {'Yes' if prediction == 'yes' else 'No'}\n"
-        f"Size: {taker_size}% of available margin\n"
-        f"Payoff: {(1-(book.price(book.ask_index)/book.price_tick))*taker_size} AMB\n\n"
+        f"Size: {taker_size} AMB of available margin\n"
+        f"Payoff: {(1-(bid_index/book.price_tick))*size}  AMB\n\n"
         
         f"Transaction successful!\n"
         f"Your wallet balance is now {account.balance} AMB\n"
+        f"Transaction hash: 0x{txn_hash.hex()}\n"
+        f"Matched Transaction hash: 0x{matched_txn_hash.hex()}\n"
       )
+      
       keyboard = [
         [
           InlineKeyboardButton("🔮 Make Another Prediction", callback_data=str(PREDICTION_MANAGEMENT)),

@@ -23,11 +23,10 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         'positions',
-        sa.Column('telegram_user_id', sa.Integer, sa.ForeignKey('users.telegram_user_id'), nullable=False),
+        sa.Column('telegram_user_id', sa.BigInteger, sa.ForeignKey('users.telegram_user_id'), nullable=False),
         sa.Column('market_id', sa.Integer, sa.ForeignKey('markets.market_id'), nullable=False),
         sa.Column('size', sa.Integer, nullable=False),
         sa.Column('notional', sa.Integer, nullable=False),
-        sa.Column('max_price', sa.Integer, nullable=False),
         sa.Column('prediction', sa.Integer, nullable=False),
         sa.Column('timestamp', sa.DateTime, nullable=False),
         sa.PrimaryKeyConstraint('telegram_user_id', 'market_id')
