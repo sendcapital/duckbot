@@ -15,6 +15,7 @@ from consts import (
   PREDICTION_ROUTES,
   MAIN_MENU,
   PREDICTION_MANAGEMENT,
+  MARKET_MAKER_TG_ID
 )
 from models import (
   Market,
@@ -281,7 +282,7 @@ class Prediction:
         keyboard = [
           [
             InlineKeyboardButton("🟢 Confirm", callback_data=f"confirm_{market_id}_{prediction}"),
-            InlineKeyboardButton("🔴 Cancel", callback_data=f"cancel_{market_id}_{prediction}"),
+            InlineKeyboardButton("🔴 Cancel", callback_data=str(PREDICTION_MANAGEMENT)),
           ],
           [
             InlineKeyboardButton("⬅️ Go Back", callback_data=str(PREDICTION_MANAGEMENT)),
@@ -302,6 +303,115 @@ class Prediction:
     
     return PREDICTION_ROUTES
   
+  async def predict(self, update: Update, context: CallbackContext) -> int:
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data.startswith("confirm_"):
+      market_id, prediction = query.data.split("_")[1:] # where prediction is 1 or 0 (truthy or falsey)
+      
+      # TODO: call function to send bid on chain
+      
+      
+      # match accounts for book and decide how much funds to transfer to the vault
+      # initiate order book
+      market_data: Market = self.market_interface.fetch_market_data(market_id=market_id)[0]
+      book = OrderBook(
+        book = market_data.book,
+        price_tick = market_data.price_tick,
+        ask_index=market_data.ask_index
+      )
+      # initiate market maker and taker account objects
+      wallet_data = self.wallet_interface.fetch_wallet_data(user_id=query.from_user.id)
+      wallet_balance = fetch_eth_balance(self.w3, wallet_data.address)
+      
+      if wallet_balance > 0:
+        account = Account(
+          Position(0, 0),
+          balance=wallet_balance
+        )
+        positions_data = self.position_interface.fetch_positions(telegram_user_id=query.from_user.id)
+        if positions_data:
+          account = Account(
+            Position(positions_data[0].size, positions_data[0].notional),
+            balance=wallet_balance
+          )
+      market_maker = Account(Position(), 100000)
+
+      taker_price = book.price(book.ask_index)
+      taker_size = context.user_data.get('size', 0)
+      
+      # match accounts for market maker and account
+      book.match_accounts(market_maker, account, taker_price, taker_size)
+      
+      # TODO: carry out transaction for market maker and account on-chain
+      
+      
+      # carry out settlement
+      account.settle()
+      market_maker.settle()
+      
+      # update position in db for account
+      if positions_data:
+        self.position_interface.update_position(
+          telegram_user_id=query.from_user.id,
+          size=account.position.size,
+          notional=account.position.notional
+        )
+      else:
+        self.position_interface.create_position(
+          telegram_user_id=query.from_user.id,
+          size=account.position.size,
+          notional=account.position.notional
+        )
+      
+      # update position in db for market_maker after checking for market maker position data
+      market_maker_positions_data = self.position_interface.fetch_positions(telegram_user_id=MARKET_MAKER_TG_ID)
+      if market_maker_positions_data:
+        market_maker.position.size = market_maker_positions_data[0].size
+        market_maker.position.notional = market_maker_positions_data[0].notional
+        self.position_interface.update_position(
+          telegram_user_id=MARKET_MAKER_TG_ID,
+          size=market_maker.position.size,
+          notional=market_maker.position.notional
+        )
+      else:
+        self.position_interface.create_position(
+          telegram_user_id=MARKET_MAKER_TG_ID,
+          size=market_maker.position.size,
+          notional=market_maker.position.notional
+        )
+        
+      text = (
+        f"🔮 Prediction confirmed!\n"
+        f"📊 Category: {market_data.category}\n"
+        f"📈 Market: {' '.join(market_data.market_name.split('_'))}\n"
+        f"📅 Created At: {str(market_data.created_at)}\n\n"
+        
+        f"Your Selection: {'Yes' if prediction == 'yes' else 'No'}\n"
+        f"Size: {taker_size}% of available margin\n"
+        f"Payoff: {(1-(book.price(book.ask_index)/book.price_tick))*taker_size} AMB\n\n"
+        
+        f"Transaction successful!\n"
+        f"Your wallet balance is now {account.balance} AMB\n"
+      )
+      keyboard = [
+        [
+          InlineKeyboardButton("🔮 Make Another Prediction", callback_data=str(PREDICTION_MANAGEMENT)),
+          InlineKeyboardButton("⬅️ Go Back", callback_data=str(MAIN_MENU)),
+        ]
+      ]
+      reply_markup = InlineKeyboardMarkup(keyboard)
+      await query.message.reply_text(text=text, reply_markup=reply_markup)
+    else:
+      await query.message.reply_text(text="Invalid market selection!")
+      
+    return PREDICTION_ROUTES
+         
+
+      
+      
+  
 
   def get_handler(self):
     prediction_routes = [
@@ -311,6 +421,7 @@ class Prediction:
       CallbackQueryHandler(self.make_prediction, pattern=f"^select_market_.+$"),
       CallbackQueryHandler(self.adjust_size, pattern=f"^adjust_size_.+$"),
       CallbackQueryHandler(self.confirm_prediction, pattern=f"^predict_.+$"),
+      CallbackQueryHandler(self.predict, pattern=f"^confirm_.+$"),
       CallbackQueryHandler(self.main_menu, pattern=f"^{MAIN_MENU}$"),
     ]
     prediction_routes.extend(self.airdao_handler.base_commands())

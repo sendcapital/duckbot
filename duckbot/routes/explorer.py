@@ -199,7 +199,7 @@ class Explorer:
       
       keyboard = [[InlineKeyboardButton("⬅️ Go Back", callback_data=str(EXPLORER_MANAGEMENT))]]
       keyboard_markup = InlineKeyboardMarkup(keyboard)
-      await update.message.reply_text(f"The {symbol} token balance of {message[0]} is \n {round_to_first_three_nonzero_digits(formatted_balance)}", reply_markup=keyboard_markup)
+      await update.message.reply_text(f"The {symbol} token balance of {message[0]} is \n {round_to_first_three_nonzero_digits(formatted_balance)} {symbol}", reply_markup=keyboard_markup)
       logger.info(f"Successful fetching of ERC20 balance for {address}")
     except Exception as e:
       await update.message.reply_text(f"Error fetching ERC20 balance: {str(e)}")

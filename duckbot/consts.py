@@ -1,6 +1,9 @@
 from telegram.ext import (
   ConversationHandler,
 )
+
+MARKET_MAKER_TG_ID = 7210638562
+
 END = ConversationHandler.END
 
 # Stages
@@ -22,7 +25,7 @@ QUERY_ROUTES, EXPLORER_ROUTES, WALLET_ROUTES, TRADE_ROUTES, PREDICTION_ROUTES, E
   SEND_FUNDS,
   FETCH_BRIDGE_INFO,
   SELECT_MARKET,
-  CATEGORY
+  CATEGORY,
 ) = range(16)
 
 

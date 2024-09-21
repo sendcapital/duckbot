@@ -101,6 +101,8 @@ class Wallet:
     operation = context.user_data.get('operation')
     if operation == 'gen':
       await self.gen_wallet(update, context)
+    if operation == 'fund':
+      await self.fund_wallet(update, context)
     return WALLET_ROUTES
 
   async def gen_wallet_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -134,7 +136,6 @@ class Wallet:
       wallet_name = existing_wallet.label
       encrypted_private_key = str(existing_wallet.encrypted_key)
       
-    
     text = (
       f"Wallet generated successfully!\n"
       f"Name: {wallet_name}\n"
@@ -151,9 +152,12 @@ class Wallet:
     return WALLET_ROUTES
   
   async def fund_wallet_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    user_id = update.message.from_user.id
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    context.user_data['operation'] = 'fund'
     text = "Please enter the address you want to fund."
-    await update.message.reply_text(text=text, reply_markup=ForceReply())
+    await query.message.reply_text(text=text, reply_markup=ForceReply())
     logger.info(f"User {user_id} is funding a wallet.")
     return WALLET_ROUTES
   
