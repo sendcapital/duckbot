@@ -28,9 +28,9 @@ The outcomes are verified solely by a centralized Oracle, managed by the Duck Bo
     - Matching Logic
   - AMM
     - AMM Logic
-- Telegram Bot
-  - UI
-- Discord trading alerts
+- UI
+  - Telegram Bot
+  - Discord trading alerts
 
 ## Components
 
