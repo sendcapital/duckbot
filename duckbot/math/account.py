@@ -30,6 +30,7 @@ class Account:
         available = self.available_margin()
         if available > 0:
             self.position.notional += available
+            self.balance -= available
             return available
         else:
             return 0

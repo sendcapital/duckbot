@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from .types import *
 from .position import Position
+from .account import Account
 
 import logging
 
@@ -75,6 +76,7 @@ class OrderBook:
         match_maker = self.match(taker_price, taker_size)
         taker.swap(match_maker)
         match_maker.size *= -1
+        match_maker.notional *= -1
         maker.swap(match_maker)
 
 
