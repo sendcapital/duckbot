@@ -101,11 +101,9 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         emit Withdrawal(msg.sender, amountE18);
     }
 
-    function worstPnlE18(address userAddress) public view returns (int256 pnl) {
+    function worstPnlE18(address userAddress) public view returns (int256 pnl) {            
         int256 worstExitNotionalE18 = 0;
-        if (userSizeE9[userAddress] < 0)
-            worstExitNotionalE18 = MAX_PRICE_E9 * userSizeE9[userAddress];
-
+        if ((isResolved && outcome) || (!isResolved && userSizeE9[userAddress] < 0)) worstExitNotionalE18 = MAX_PRICE_E9 * userSizeE9[userAddress];
         return worstExitNotionalE18 - userNotionalE18[userAddress];
     }
 

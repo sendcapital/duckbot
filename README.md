@@ -1,6 +1,6 @@
 # Documentation
 ## Introduction
-Duckbot is a Telegram Bot Prediction Market implemented with an Orderbook and AMM. Positions are tracked and settled onchain while Orderbook Data & Matching and AMM logic are handled offchain. The smart contracts are written in Solidity and deployed on AIRDAO.
+Duckbot🦆 is a Telegram Bot Prediction Market implemented with an Orderbook and AMM. Positions are tracked and settled onchain while Orderbook Data & Matching and AMM logic are handled offchain. The smart contracts are written in Solidity and deployed on AIRDAO.
 
 ## Structure
 
