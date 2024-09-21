@@ -9,7 +9,7 @@ from .position import Position
 class Account:
     position: Position
 
-    def swap(self, ...) -> Position:
-        self.position.size += ...
-        self.position.notional += ...
+    def swap(self, matched_position: Position) -> Position:
+        self.position.size -= matched_position.size
+        self.position.notional -= matched_position.notional
         return self.position

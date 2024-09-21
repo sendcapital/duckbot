@@ -32,7 +32,7 @@ class OrderBook:
 
     # mutates
     # matches limit order against book. ie. input taker price + slippage allowance
-    # notional is amount taker pays
+    # notional is amount maker pays
     def match(self, taker_price: Price, taker_size: Size) -> Position:
         # if |taker_size| > |maker_size|: wipe & continue else: hit & stop
         # taker_size = 3; maker_size = -5 -> -2. stop

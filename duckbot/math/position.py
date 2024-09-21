@@ -14,4 +14,3 @@ class Position:
     
     def price(self) -> float:
         return self.notional / self.size if self.size else 0
-
