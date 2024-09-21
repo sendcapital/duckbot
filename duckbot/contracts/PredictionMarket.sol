@@ -69,10 +69,15 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     ) Ownable(msg.sender) {
         question = _question;
         questionId = keccak256(abi.encodePacked(question));
-        endTime = _endTime;
         oracleAddress = _oracleAddress;
         matchNonce = 0;
         settlerAddress = address(this);
+        
+        if (_endTime == 0) {
+            endTime = 0;
+        } else {
+            endTime = _endTime;
+        }
 
         emit MarketCreated(_question, _endTime, _oracleAddress);
     }
@@ -173,7 +178,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         emit MarketSettled(userAddress, matchedMakerSizeE9, matchedMakerNotionalE18);
     }
 
-    function resolveOracle() external onlyOwner {
+    function resolveOracle() external {
         require(block.timestamp >= endTime, "Market has not ended yet");
         require(!isResolved, "Market already resolved");
 
