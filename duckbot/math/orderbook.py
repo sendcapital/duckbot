@@ -34,7 +34,7 @@ class OrderBook:
     # mutates
     # matches limit order against book. ie. input taker price + slippage allowance
     # notional is amount maker pays
-    def match(self, taker_price: Price, taker_size: Size) -> Position:
+    def _match(self, taker_price: Price, taker_size: Size) -> Position:
         # if |taker_size| > |maker_size|: wipe & continue else: hit & stop
         # taker_size = 3; maker_size = -5 -> -2. stop
         # taker_size = 7; maker_size = -5 -> 2. cont
@@ -65,7 +65,7 @@ class OrderBook:
             self.ask_index += -1 if is_bid_maker else 1
             
             if 0 < self.ask_index < self.len_book:
-                next_match = self.match(taker_price, taker_size + matched_maker_size)  # recursion
+                next_match = self._match(taker_price, taker_size + matched_maker_size)  # recursion
             else:
                 # end of book
                 self.ask_index = min(max(self.ask_index, 1), self.len_book - 1)
@@ -73,14 +73,16 @@ class OrderBook:
             return Position(size=next_match.size + matched_maker_size, notional=next_match.notional + maker_price * matched_maker_size)
 
     def match_accounts(self, maker: Account, taker: Account, taker_price: Price, taker_size: Size):
-        match_maker = self.match(taker_price, taker_size)
-        taker.swap(match_maker)
+        # call this to match 2 accounts. All LPs will be under 1 mm account, then we can tokenize their share in the account if we want to. Or just keep 1 MM.
+        match_maker = self._match(taker_price, taker_size)
+        taker._swap(match_maker)
         match_maker.size *= -1
         match_maker.notional *= -1
-        maker.swap(match_maker)
+        maker._swap(match_maker)
 
 
     def pretty(self) -> str:
+        # printing
         l_ask = (f'{self.price(i):5}% | {-self.size(i):5}' for i in range(self.len_book - 1, self.ask_index - 1, -1))
         l_bid = (f'{self.price(i):5}% | {self.size(i):5}' for i in range(self.ask_index - 1, -1, -1))
         return f'{'\n'.join(l_ask)}\n{'-' * 15}\n price |  size\n{'-' * 15}\n{'\n'.join(l_bid)}'
