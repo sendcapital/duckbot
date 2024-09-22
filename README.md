@@ -4,7 +4,7 @@
 
 Duck Bot 🦆 is a Telegram Bot Prediction Market implemented with an Orderbook and AMM. Positions are tracked and settled onchain while Orderbook Data & Matching and AMM logic are handled offchain. The smart contracts are written in Solidity and deployed on AirDAO.
 
-Bets are placed and settled in the native token of the chain, AMB.
+Bets are placed and settled in the native token of the chain, $AMB.
 
 Aggregation uses perps market design with prices as probabilities ranging from 0% to 100%.
 
@@ -48,3 +48,8 @@ The orderbook is stored in an offchain PostgreSQL database. The AMM gridbot para
 The matching engine logic is also conducted offchain whenever a user attempts to bet, which then submits the match onchain to complete the trade.
 
 The AMM logic is embedded in the matching engine which replaces filled Asks with Bids one price level lower, and filled Bids with Asks one price level higher.
+
+### UI
+Users interact with the Telegram Bot to input their actions, including wallet creation & management, deposit, withdrawal, betting.
+
+There is also a Discord Webhook for Trading Alerts in https://discord.gg/n7uuEhFD.
