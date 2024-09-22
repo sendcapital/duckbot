@@ -18,6 +18,9 @@ def trade_alert(
             title='Trade Made',
             description=f'`{market_name}`',
             color=0xFFFF00,
+            image=Image(
+                url='https://i.imgur.com/HXMiOsT.jpeg',
+            ),
             fields=[
                 Field('User', f'`{taker_address}`', False),
                 Field('Bet Size', f'`{size}`', True),

@@ -11,6 +11,14 @@ class Footer:
 
 
 @dataclass
+class Image:
+    url: str  # source url of image (only supports http(s) and attachments)
+    proxy_url: int | None = None  # a proxied url of the image
+    height: int | None = None  # height of image
+    width: int | None = None  # width of image
+
+
+@dataclass
 class Author:
     name: str  # name of author | 256 characters
 
@@ -28,6 +36,7 @@ class Embed:
     description: str | None = None  # description of embed | 4096 characters
     color: int | None = None  # color code of the embed
     footer: Footer | None = None  # footer information
+    image: Image | None = None  # image information
     author: Author | None = None  # author information
     fields: list[Field] | None = None  # fields information, max of 25
 
