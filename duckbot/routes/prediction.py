@@ -519,13 +519,15 @@ class Prediction:
       
       transaction = self.bitcoin_market_contract.functions.deposit().build_transaction({
           'from': taker_address_checksum,
-          'value': (-position.size if position.size < 0 else position.size) * 10**18,
+          'value': abs(position.size) * 10**18,
           'gas': 30000000,
           'gasPrice': self.w3.to_wei('50', 'gwei'),
           'nonce': self.w3.eth.get_transaction_count(taker_address_checksum),
       })
+      
+      logger.info(taker_address_checksum)
       logger.info(f"test: {private_key}")
-      signed_txn = self.w3.eth.account.sign_transaction(transaction, private_key="90566d7b80ff6b0718b3acfaaeed3d12779a9112f4499a7ef33df6b8628149ef")
+      signed_txn = self.w3.eth.account.sign_transaction(transaction, private_key="636b5fa9f26d5093b75431c9f929902e0d8de79c470c5ceb96cae60555a6c18c")
 
       txn_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
       
@@ -570,13 +572,15 @@ class Prediction:
         f"Matched Transaction hash: 0x{matched_txn_hash.hex()}\n"
       )
       try:
-        trade_alert(
-          'Trump wins the election',
-          taker_address,
-          abs(position.size),
-          prediction == "yes",
-          position.notional/position.size,
-      )
+        if abs(position.size) != 0:
+          trade_alert(
+            'Trump wins the election',
+            taker_address,
+            abs(position.size),
+            prediction == "yes",
+            position.notional/position.size,
+        )
+          
         
       except Exception as e:
         logger.error(f"Error sending trade alert: {e}")
