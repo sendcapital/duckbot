@@ -286,10 +286,7 @@ class Prediction:
       # keyboard to adjust size of order in percentage of available margin
       wallet_data = self.wallet_interface.fetch_wallet_data(user_id=query.from_user.id)
       wallet_balance = fetch_eth_balance(self.w3, wallet_data.address)
-      
-      # check if position exists assume 1 position in db
-      positions_data = self.position_interface.fetch_positions(telegram_user_id=query.from_user.id)
-      
+            
       avail_margin = self.bitcoin_market_contract.functions.availableMarginE18(wallet_data.address).call()
 
       shortened_address = wallet_data.address[:6] + "..." + wallet_data.address[-4:]
@@ -360,6 +357,7 @@ class Prediction:
       )
       
       positions_data = self.position_interface.fetch_positions(telegram_user_id=query.from_user.id)
+      
       wallet_data = self.wallet_interface.fetch_wallet_data(user_id=query.from_user.id)
       wallet_balance = fetch_eth_balance(self.w3, wallet_data.address)
       
@@ -450,20 +448,23 @@ class Prediction:
           Position(0, 0),
           balance=wallet_balance
         )
+        
         positions_data = self.position_interface.fetch_positions(telegram_user_id=query.from_user.id)
-        if positions_data:
-          if isinstance(positions_data, list):
-            positions_data = positions_data[0]
-            account = Account(
-              Position(positions_data[0].size, positions_data[0].notional),
-              balance=wallet_balance
-            )
-          else:
-            account = Account(
-              Position(positions_data.size, positions_data.notional),
-              balance=wallet_balance
-            )
-   
+        
+        try:
+          account = Account(
+            Position(positions_data[0].size, positions_data[0].notional),
+            balance=wallet_balance
+          )
+        except Exception as e:
+          logger.error(f"Error fetching positions data: {e}")
+          account = Account(
+            Position(0, 0),
+            balance=wallet_balance
+          )
+        
+    
+          
       market_maker = Account(Position(), 100000)
 
       taker_price = book.price(book.ask_index) 
@@ -471,6 +472,7 @@ class Prediction:
       # signed size
       taker_size = context.user_data.get('size', 0) if prediction == "yes" else -context.user_data.get('size', 0)
       
+
       private_key = self.cipher.decrypt_wallet(wallet_data.encrypted_key[1:])
       
       wallet = self.w3.eth.account.from_key(private_key)
@@ -495,6 +497,8 @@ class Prediction:
           market_id = market_id,
           size = position.size if position.size != 0 else 0,
           notional = position.notional if position.notional != 0 else 0,
+          prediction = prediction_status,
+          timestamp = datetime.now()
           
         )
         
@@ -562,9 +566,7 @@ class Prediction:
         )
         
       bid_index = book.price_tick - book.ask_index
-    
-      avail_margin = self.bitcoin_market_contract.functions.availableMarginE18(taker_address).call()
-      
+          
       
       self.funds = True
       text = (
@@ -574,7 +576,7 @@ class Prediction:
         f"📅 Created At: {str(market_data.created_at)}\n\n"
         
         f"Your Selection: {'Yes' if prediction == 'yes' else 'No'}\n"
-        f"Size: {avail_margin} AMB of available margin\n"
+        f"Size: {taker_size} AMB of available margin\n"
         f"Payoff: {(1-(bid_index/book.price_tick))*taker_size}  AMB\n\n"
         
         f"Transaction successful!\n"
