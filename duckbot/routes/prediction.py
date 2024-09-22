@@ -9,7 +9,9 @@ from telegram.ext import (
   CallbackContext,
 )
 from typing import List
+import numpy as np
 
+from discord.trading_alert import trade_alert
 from market import OrderBook, Account, Position
 from database import AirDaoDB
 from consts import (
@@ -34,6 +36,7 @@ from contracts import (
   MARKET_ABI
 )
 
+
 logger = init_logger(__name__)
 
 class Prediction:
@@ -48,6 +51,11 @@ class Prediction:
     self.funds = False
     self.cipher = cipher
     self.main_menu = self.airdao_handler.main_menu_routes.get_main_menu()
+    
+    self.bitcoin_market_contract = self.w3.eth.contract(
+        address="0x492497Ab6667b458f93D47Ea96C474a76a9983b1", 
+        abi=MARKET_ABI
+      )
     
   def get_prediction_keyboard(self):
     keyboard = [
@@ -126,14 +134,13 @@ class Prediction:
     
     return PREDICTION_ROUTES
     
-  
   async def predict_market(self, update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     await query.answer()
     if query.data.startswith("category_"):
       category = str(query.data.split("_")[-1]) 
       
-      if category == "crypto":
+      if category == "politics":
         text = f"📈 {category} Category\n" + "Adjust the size of your order as a percentage of your available margin"
         
         markets: List[Market] = self.market_interface.fetch_market_category(category=category)[0]
@@ -201,36 +208,41 @@ class Prediction:
     query = update.callback_query
     await query.answer()
     
-    # TODO: call function to withdraw funds from the contract which handles settlement
-    # check for funds in the contract for particular user
-      
     if self.funds:
-      
-      
-      market_contract = self.w3.eth.contract(
-        address="0xC0ce5cdFdE42e511294DDC72d06250be36DB559B", 
-        abi=MARKET_ABI
-      )
-    
-      market_contract.functions.resolveOracle().call()
-      
+            
       wallet_data = self.wallet_interface.fetch_wallet_data(user_id=query.from_user.id)
       private_key = self.cipher.decrypt_wallet(wallet_data.encrypted_key[1:])
       wallet = self.w3.eth.account.from_key(private_key)
       taker_address = wallet.address
-      taker_address_checksum = self.w3.to_checksum_address(taker_address)
-            
-      txn = market_contract.functions.withdraw(5).build_transaction({
-        'from': taker_address_checksum,
-        'gas': 200000, 
+    
+      avail_margin = self.bitcoin_market_contract.functions.availableMarginE18(taker_address).call()
+      wallet_balance = fetch_eth_balance(self.w3, wallet_data.address)
+      
+      logger.info(f"Available Margin: {avail_margin if avail_margin > 0 else wallet_balance}")
+      txn = self.bitcoin_market_contract.functions.withdraw(int(avail_margin)).build_transaction({
+        'from': taker_address,
+        'gas': 30000000, 
         'gasPrice': self.w3.to_wei('20', 'gwei'),
-        'nonce': self.w3.eth.get_transaction_count(taker_address_checksum)
+        'nonce': self.w3.eth.get_transaction_count(taker_address)
       })
       
       signed_txn = self.w3.eth.account.sign_transaction(txn, private_key=private_key)
       txn_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
       
       logger.info(f"Withdrawal Transaction hash: 0x{txn_hash.hex()}")
+      
+      # try:
+      #     trade_alert(
+      #       'Bitcoin exceeds $US63,000',
+      #       taker_address,
+      #       abs(avail_margin),
+      #       True,
+      #       /avail_margin,
+      #   )
+          
+      #   except Exception as e:
+      #     logger.error(f"Error sending trade alert: {e}")
+        
       
       
       text = "Funds withdrawn successfully!"
@@ -288,15 +300,16 @@ class Prediction:
           balance=wallet_balance
         )
       
-      available_margin = account.available_margin()
+      avail_margin = self.bitcoin_market_contract.functions.availableMarginE18(wallet_data.address).call()
+
       shortened_address = wallet_data.address[:6] + "..." + wallet_data.address[-4:]
       size = context.user_data.get('size', 0)
 
       text = (
         f"<b>Wallet Info:</b>\n"
         f"Address: {shortened_address}\n"
-        f"Current wallet balance: {wallet_balance} AMB\n"
-        f"Available Margin: {available_margin} AMB\n"
+        f"Current wallet balance: {np.round(float(wallet_balance),2)} AMB\n"
+        f"Available Margin: {np.round(float(avail_margin)/(10**18),2)} AMB\n"
         f"Default Size: {context.user_data.get('size', 0)} AMB\n"
       )
       
@@ -350,11 +363,13 @@ class Prediction:
     if query.data.startswith("predict_"):
       market_id, prediction = query.data.split("_")[1:]
       market_data: Market = self.market_interface.fetch_market_data(market_id=market_id)[0]
+      
       book = OrderBook(
         book = market_data.book,
         price_tick = market_data.price_tick,
-        ask_index=market_data.ask_index
+        ask_index = market_data.ask_index
       )
+      
       positions_data = self.position_interface.fetch_positions(telegram_user_id=query.from_user.id)
       wallet_data = self.wallet_interface.fetch_wallet_data(user_id=query.from_user.id)
       wallet_balance = fetch_eth_balance(self.w3, wallet_data.address)
@@ -372,10 +387,15 @@ class Prediction:
             balance=wallet_balance
           )
       
-        available_margin = account.available_margin()
+        avail_margin = self.bitcoin_market_contract.functions.availableMarginE18(wallet_data.address).call()
+
         bid_index = book.price_tick - book.ask_index
         size = context.user_data.get('size', 0)
     
+        size = float(size)
+        avail_margin = float(avail_margin)
+        wallet_balance = float(wallet_balance)
+        
         orderbook_text =  (
           f"Your Selection: {"Yes" if prediction == "yes" else "No"}\n"
           f"📊 Category: {market_data.category}\n"
@@ -384,12 +404,12 @@ class Prediction:
           
           f"```{book.pretty()}```\n\n"
           
-          f"Available Margin: {available_margin}\n"
-          f"Size: {(size/available_margin)*100}% of available margin\n"
+          f"Available Margin: {avail_margin/(10**18) if avail_margin > 0 else wallet_balance}\n"
+          f"Size: {np.round(size/(avail_margin/(10**18) if avail_margin > 0 else wallet_balance), 2)*100}% of available margin\n"
           f"Payoff: {(1-(bid_index/book.price_tick))*size} AMB\n\n"
           
           f"Please confirm your prediction\n"
-          f"Order valid for 30 seconds before auto cancellation\n" # TODO: Add timer
+          f"Order valid for 30 seconds before auto cancellation\n" 
         )      
         keyboard = [
           [
@@ -448,18 +468,14 @@ class Prediction:
             Position(positions_data[0].size, positions_data[0].notional),
             balance=wallet_balance
           )
+          
       market_maker = Account(Position(), 100000)
 
-      taker_price = book.price(book.ask_index)
+      taker_price = book.price(book.ask_index) * (1.20 if prediction == "yes" else 0.8)
       taker_size = context.user_data.get('size', 0)
 
-      # TODO: carry out transaction for market maker and account on-chain
+      # carry out transaction for market maker and account on-chain
       size = context.user_data['size']
-      
-      market_contract = self.w3.eth.contract(
-        address="0xC0ce5cdFdE42e511294DDC72d06250be36DB559B", 
-        abi=MARKET_ABI
-      )
       
       private_key = self.cipher.decrypt_wallet(wallet_data.encrypted_key[1:])
       wallet = self.w3.eth.account.from_key(private_key)
@@ -469,12 +485,20 @@ class Prediction:
       maker_address = MAKER_ADDRESS
       maker_wallet = self.wallet_interface.fetch_wallet_data(user_id=MARKET_MAKER_TG_ID)
       maker_private_key = self.cipher.decrypt_wallet(maker_wallet.encrypted_key[1:])
+      
       # maker_wallet = self.w3.eth.account.from_key(maker_private_key)
       
       input_nonce = self.position_interface.count_positions()
       
-      position = book._match(taker_price, taker_size)
-      match_txn = market_contract.functions.matchAccounts(
+      try:
+        position = book._match(taker_price, taker_size)
+      except Exception as e:
+        logger.error(f"Error matching accounts: {e}")
+        return PREDICTION_ROUTES
+      
+      logger.info(f"Position size: {position.size}, Position notional: {position.notional}")
+      
+      match_txn = self.bitcoin_market_contract.functions.matchAccounts(
         maker_address,
         taker_address_checksum,
         position.size,
@@ -484,23 +508,24 @@ class Prediction:
           'from': maker_address,
           'gas': 200000, 
           'gasPrice': self.w3.to_wei('20', 'gwei'),
-          'nonce': self.w3.eth.get_transaction_count(taker_address_checksum)
+          'nonce': self.w3.eth.get_transaction_count(maker_address)
       })
         
+      logger.info(f"test: {private_key}")
+
       signed_match_txn = self.w3.eth.account.sign_transaction(match_txn, private_key="90566d7b80ff6b0718b3acfaaeed3d12779a9112f4499a7ef33df6b8628149ef")
       matched_txn_hash = self.w3.eth.send_raw_transaction(signed_match_txn.raw_transaction)
       logger.info(f"Matching Transaction hash: 0x{matched_txn_hash.hex()}")
-
       
-      transaction = market_contract.functions.deposit().build_transaction({
-          'from': wallet.address,
-          'value': size * 10**18,
-          'gas': 2000000,
+      transaction = self.bitcoin_market_contract.functions.deposit().build_transaction({
+          'from': taker_address_checksum,
+          'value': (-position.size if position.size < 0 else position.size) * 10**18,
+          'gas': 30000000,
           'gasPrice': self.w3.to_wei('50', 'gwei'),
-          'nonce': self.w3.eth.get_transaction_count(wallet.address) + 1,
+          'nonce': self.w3.eth.get_transaction_count(taker_address_checksum),
       })
-      
-      signed_txn = self.w3.eth.account.sign_transaction(transaction, private_key=private_key)
+      logger.info(f"test: {private_key}")
+      signed_txn = self.w3.eth.account.sign_transaction(transaction, private_key="90566d7b80ff6b0718b3acfaaeed3d12779a9112f4499a7ef33df6b8628149ef")
 
       txn_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
       
@@ -511,7 +536,7 @@ class Prediction:
         self.position_interface.update_position(
           telegram_user_id=query.from_user.id,
           market_id=market_id,
-          size=account.position.size,
+          size=position.size,
           notional=account.position.notional,
           prediction=prediction_status,
           timestamp=datetime.now()
@@ -520,8 +545,8 @@ class Prediction:
         self.position_interface.create_if_not_exists(
           telegram_user_id=query.from_user.id,
           market_id=market_id,
-          size=account.position.size,
-          notional=account.position.notional,
+          size=position.size,
+          notional=position.notional,
           prediction=prediction_status,
           timestamp=datetime.now()
         )
@@ -544,6 +569,18 @@ class Prediction:
         f"Transaction hash: 0x{txn_hash.hex()}\n"
         f"Matched Transaction hash: 0x{matched_txn_hash.hex()}\n"
       )
+      try:
+        trade_alert(
+          'Trump wins the election',
+          taker_address,
+          abs(position.size),
+          prediction == "yes",
+          position.notional/position.size,
+      )
+        
+      except Exception as e:
+        logger.error(f"Error sending trade alert: {e}")
+      
       
       keyboard = [
         [
