@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Duck Bot is a Telegram Bot Prediction Market implemented with an Orderbook and AMM. Positions are tracked and settled onchain while Orderbook Data & Matching and AMM logic are handled offchain. The smart contracts are written in Solidity and deployed on AirDAO.
+Duck Bot 🦆 is a Telegram Bot Prediction Market implemented with an Orderbook and AMM. Positions are tracked and settled onchain while Orderbook Data & Matching and AMM logic are handled offchain. The smart contracts are written in Solidity and deployed on AirDAO.
 
 Bets are placed and settled in the native token of the chain, AMB.
 
@@ -12,7 +12,7 @@ The LP to the AMM is the bot deployer. The AMM is a grid trading strategy with e
 
 Users can only place Market Orders via the bot, so the taker will always be the user and the maker will always be the bot deployer.
 
-The outcomes are verified solely by a centralized Oracle, managed by the Duck Bot team via a multisignature. The outcomes reported by the Oracle are open for disputes from anyone for 2 days (3 mins in dev), which the team will subsequently resolve. The dispute period is fixed and will not be extended in the case of a dispute.
+The outcomes are verified solely by a centralized Oracle, managed by the Duck Bot team via a Multisig wallet. The outcomes reported by the Oracle are open for disputes from anyone for 2 days (3 mins in dev), which the team will subsequently resolve. The dispute period is fixed and will not be extended in the case of a dispute.
 
 ## Structure
 
@@ -34,10 +34,15 @@ The outcomes are verified solely by a centralized Oracle, managed by the Duck Bo
 
 ## Components
 
-### Chain
+### On-Chain
+Each Prediction Market is created on-chain by deploying the PredictionMarket.sol contract. These markets will be visible and available for users to predict and trade after the deployment.
+
 Accounts have a Balance and Positions per Prediction Market. A position consists of an aggregated notional and size which is sufficient tracking information.
 
-### Offchain
+After the outcome has been reported by the Oracle, anyone will be able to call on the `resolveOracle` function, which will update the Prediction Market's state with the Oracle and be set to resolved. Then, users who are profitable will be able to withdraw their payouts.
+
+
+### Off-chain
 The orderbook is stored in an offchain PostgreSQL database. The AMM gridbot parameters are fixed, so this results in a fixed list of signed sizes to represent the book.
 
 The matching engine logic is also conducted offchain whenever a user attempts to bet, which then submits the match onchain to complete the trade.
