@@ -41,6 +41,9 @@ Accounts have a Balance and Positions per Prediction Market. A position consists
 
 After the outcome has been reported by the Oracle, anyone will be able to call on the `resolveOracle` function, which will update the Prediction Market's state with the Oracle and be set to resolved. Then, users who are profitable will be able to withdraw their payouts.
 
+Probabilities (Prices in Perpetuals Model) arn e9.
+Sizes (Contracts) are e9.
+Notional (Underlying amount for Balance, Pnl, Margin) are e18.
 
 ### Off-chain
 The orderbook is stored in an offchain PostgreSQL database. The AMM gridbot parameters are fixed, so this results in a fixed list of signed sizes to represent the book.
