@@ -19,6 +19,11 @@ class Image:
 
 
 @dataclass
+class Thumbnail(Image):
+    ...
+
+
+@dataclass
 class Author:
     name: str  # name of author | 256 characters
 
@@ -37,6 +42,7 @@ class Embed:
     color: int | None = None  # color code of the embed
     footer: Footer | None = None  # footer information
     image: Image | None = None  # image information
+    thumbnail: Thumbnail | None = None  # thumbnail information
     author: Author | None = None  # author information
     fields: list[Field] | None = None  # fields information, max of 25
 

@@ -18,7 +18,7 @@ def trade_alert(
             title='Trade Made',
             description=f'`{market_name}`',
             color=0xFFFF00,
-            image=Image(
+            thumbnail=Thumbnail(
                 url='https://i.imgur.com/HXMiOsT.jpeg',
             ),
             fields=[
