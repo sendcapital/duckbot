@@ -80,13 +80,6 @@
 		"type": "event"
 	},
 	{
-		"inputs": [],
-		"name": "deposit",
-		"outputs": [],
-		"stateMutability": "payable",
-		"type": "function"
-	},
-	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -169,39 +162,6 @@
 		"type": "event"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "makerAddress",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "takerAddress",
-				"type": "address"
-			},
-			{
-				"internalType": "int256",
-				"name": "matchedMakerSizeE9",
-				"type": "int256"
-			},
-			{
-				"internalType": "int256",
-				"name": "matchedMakerNotionalE18",
-				"type": "int256"
-			},
-			{
-				"internalType": "int256",
-				"name": "inputNonce",
-				"type": "int256"
-			}
-		],
-		"name": "matchAccounts",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -246,46 +206,6 @@
 		"type": "event"
 	},
 	{
-		"inputs": [],
-		"name": "renounceOwnership",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "resolveOracle",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "newOwner",
-				"type": "address"
-			}
-		],
-		"name": "transferOwnership",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "amountE18",
-				"type": "uint256"
-			}
-		],
-		"name": "withdraw",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -303,6 +223,32 @@
 		],
 		"name": "Withdrawal",
 		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "DISPUTE_PERIOD",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "MAX_PRICE_E9",
+		"outputs": [
+			{
+				"internalType": "int256",
+				"name": "",
+				"type": "int256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
 	},
 	{
 		"inputs": [
@@ -325,15 +271,9 @@
 	},
 	{
 		"inputs": [],
-		"name": "DISPUTE_PERIOD",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
+		"name": "deposit",
+		"outputs": [],
+		"stateMutability": "payable",
 		"type": "function"
 	},
 	{
@@ -391,21 +331,41 @@
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "matchNonce",
-		"outputs": [
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "makerAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "takerAddress",
+				"type": "address"
+			},
 			{
 				"internalType": "int256",
-				"name": "",
+				"name": "matchedMakerSizeE9",
+				"type": "int256"
+			},
+			{
+				"internalType": "int256",
+				"name": "matchedMakerNotionalE18",
+				"type": "int256"
+			},
+			{
+				"internalType": "int256",
+				"name": "inputNonce",
 				"type": "int256"
 			}
 		],
-		"stateMutability": "view",
+		"name": "matchAccounts",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
 		"inputs": [],
-		"name": "MAX_PRICE_E9",
+		"name": "matchNonce",
 		"outputs": [
 			{
 				"internalType": "int256",
@@ -483,6 +443,13 @@
 	},
 	{
 		"inputs": [],
+		"name": "renounceOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "resolutionTime",
 		"outputs": [
 			{
@@ -492,6 +459,13 @@
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "resolveOracle",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -518,6 +492,19 @@
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "newOwner",
+				"type": "address"
+			}
+		],
+		"name": "transferOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -575,6 +562,19 @@
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "amountE18",
+				"type": "uint256"
+			}
+		],
+		"name": "withdraw",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
