@@ -131,9 +131,8 @@ class Wallet:
         encrypted_key=str(encrypted_private_key)
       )
     else:
-      existing_wallet = self.wallet_interface.fetch_wallet_data(user_id=user_id)
-      address = existing_wallet.address
-      wallet_name = existing_wallet.label
+      existing_wallet = self.wallet_interface.fetch_wallet_data(user_id=user_id)      
+    
       encrypted_private_key = str(existing_wallet.encrypted_key[1:])
       text = (
         "Deleting wallet, please save your private key!\n"

@@ -32,6 +32,8 @@ web3 = "^6.0.0b8"
 websockets = "^13.0.1"
 yarl = "^1.11.1"
 jupyterlab = "^4.0.10"
+psycopg2  = "^2.9.9"
+psycopg2-binary = "^2.9.9"
 
 [build-system]
 requires = ["poetry-core"]

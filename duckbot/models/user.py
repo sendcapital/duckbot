@@ -1,9 +1,10 @@
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, Enum, Index, BigInteger
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime, timezone
-
+from dataclasses import dataclass
 from .base import Base
 
+@dataclass
 class User(Base):
   __tablename__ = 'users'
 

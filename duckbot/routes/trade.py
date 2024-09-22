@@ -22,7 +22,7 @@ logger = init_logger(__name__)
 class Trade:
   def __init__(self, airdao_handler, config, w3, cipher, db):
     self.config = config
-    self.w3: Web3.HTTPProvider = w3
+    self.w3: Web3.HTTPProvider = Web3(Web3.HTTPProvider(self.config["airdao_test_rpc"]))
     self.airdao_handler = airdao_handler
     self.db = db
     self.wallet_interface = self.db.wallet_interface
@@ -119,8 +119,8 @@ class Trade:
       tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
       tx = self.w3.eth.get_transaction(tx_hash)    
       text = (
-        f"Transaction sent to {receiver_address} for {amount} ETH\n"
-        f"Transaction hash: {tx_hash}"
+        f"Transaction sent to {receiver_address} for {amount} AMB\n"
+        f"Transaction hash: {tx_hash.hex()}"
       )
 
       keyboard = self.get_trade_keyboard()

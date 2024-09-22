@@ -1,9 +1,10 @@
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, Enum, Index, BigInteger, ForeignKey, PrimaryKeyConstraint, ARRAY
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime, timezone
-
+from dataclasses import dataclass
 from .base import Base
 
+@dataclass
 class Market(Base):
   __tablename__ = 'markets'
   market_id = Column(Integer, nullable=False)
